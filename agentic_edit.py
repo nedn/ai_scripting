@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field # Added dataclasses
 from google import genai
-from rg_utils import CodeMatch, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
+from rg_utils import CodeBlockMatch, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
 from llm_utils import call_llm, GEMINI_2_FLASH, GEMINI_2_5_PRO
 
 from dotenv import load_dotenv
@@ -26,7 +26,7 @@ console = Console()
 
 # (generate_replacement_prompt needs changes later to accept a CodeMatch object)
 # def generate_replacement_prompt(user_prompt: str, filename: str, matched_lines: List[Tuple[int, str]]) -> str:
-def generate_replacement_prompt(user_prompt: str, code_match: CodeMatch) -> str:
+def generate_replacement_prompt(user_prompt: str, code_match: CodeBlockMatch) -> str:
     """Creates the prompt for the LLM to generate replacement code for a CodeMatch block."""
     # Format the input block for the LLM, indicating matched lines clearly
     lines_str_parts = []

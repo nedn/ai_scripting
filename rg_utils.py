@@ -17,7 +17,7 @@ class CodeLine:
     is_match: bool # True if this line directly matched the rg pattern, False if it's context
 
 @dataclass
-class CodeMatch:
+class CodeBlockMatch:
     """Represents a contiguous block of code containing one or more matches."""
     filepath: str
     start_line: int # First line number in the block (including context)
@@ -34,12 +34,13 @@ class CodeMatch:
         """Returns line numbers that directly matched the pattern."""
         return [line.line_number for line in self.lines if line.is_match]
 
+
 @dataclass
 class CodeMatchedResult:
     """Encapsulates the results of an rg search."""
     total_files_matched: int = 0
     total_lines_matched: int = 0 # Number of lines *directly* matching the pattern
-    matches: List[CodeMatch] = field(default_factory=list) # List of matched code blocks
+    matches: List[CodeBlockMatch] = field(default_factory=list) # List of matched code blocks
     rg_stats_raw: str = "" # Raw statistics output from rg --stats
     rg_command_used: str = "" # The full rg command executed
 
@@ -231,48 +232,32 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     # --- Parsing rg Output ---
     # Regex to capture filename, line number, separator (: or -), and content
     # Handles paths with colons/hyphens before the line number part
-    # Example: /path/to/file.c:123: content
-    # Example: /path/to/file.c-122- content
-    # Example: /path/to/file.c-122-    content (with spaces)
-    # Example:    /path/to/file.c-122-    content (with indentation)
-    # Example: 10-    def some_function():  (actual rg output format)
-    line_regex = re.compile(r"^\s*(\d+)([:-])\s*(.*)$")
-    # Regex for the block separator '--'
-    separator_regex = re.compile(r"^--$")
+    # Example: 
+    # /path/to/file.c:
+    # 121: matched content
+    # 122- content
+    # 123- content 
+    # --
+    # 148- 
+    # 149: content (with indentation)
+    # 150: content (with indentation)
+    # 151- 
+    # 123 matches
+    # 123 matched lines
+    # 1 files contained matches
+    # (actual rg output format)
+
     # Regex for stats lines (simple examples)
-    stats_matches_regex = re.compile(r"(\d+)\s+matches")
-    stats_lines_regex = re.compile(r"(\d+)\s+matched lines")
-    stats_files_regex = re.compile(r"(\d+)\s+files contained matches")
+    stats_matches_regex = re.compile(r"^(\d+)\s+matches$")
 
     output_lines = rg_result.stdout.strip().split('\n')
     stats_section_start = -1
 
-    # Find where the stats section begins (usually after the last '--')
+    # Find where the stats section begins 
     for i, line in reversed(list(enumerate(output_lines))):
-        if stats_files_regex.search(line) or stats_matches_regex.search(line):
-            # Rough heuristic: stats likely start around here
-            # Look backwards for the preceding '--' or beginning of file if no '--' found
-            found_separator = False
-            for j in range(i, -1, -1):
-                if separator_regex.match(output_lines[j]):
-                    stats_section_start = j + 1
-                    found_separator = True
-                    break
-            if not found_separator:
-                # Stats might be the only output if e.g. only context matched
-                # Find first line that looks like a stat
-                for j in range(len(output_lines)):
-                    if stats_files_regex.search(output_lines[j]) or \
-                       stats_matches_regex.search(output_lines[j]) or \
-                       re.search(r"\d+ files searched", output_lines[j]):
-                        stats_section_start = j
-                        break
-                if stats_section_start == -1:
-                    stats_section_start = 0  # Default to start if heuristics fail
+        if stats_matches_regex.search(line):
+            stats_section_start = i
             break
-        elif separator_regex.match(line) and stats_section_start == -1:
-            # If we hit a separator before finding stats, stats start after it
-            stats_section_start = i + 1
 
     if stats_section_start == -1:
         # If no stats lines or separators found, assume all lines are content
@@ -283,89 +268,8 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
         # Update output_lines to only contain the code match section
         output_lines = output_lines[:stats_section_start]
 
-    # --- Process Code Match Lines ---
-    current_filepath = None
-    current_match = None
-    blocks_by_file = {}  # Group blocks by file path
-    
-    for line in output_lines:
-        # Skip empty lines
-        if not line.strip():
-            continue
-
-        # Check if this is a file path line (doesn't match our line number pattern)
-        match = line_regex.match(line)
-        if not match:
-            # If line doesn't match the number pattern and isn't empty, it's probably a file path
-            if line.strip() and not separator_regex.match(line):
-                current_filepath = line.strip()
-                # Start a new match if we have a filepath
-                if current_match:
-                    if current_filepath not in blocks_by_file:
-                        blocks_by_file[current_filepath] = []
-                    blocks_by_file[current_filepath].append(current_match)
-                    current_match = None
-            # Skip separator lines without creating new blocks
-            continue
-
-        # Process a line with line number
-        if match and current_filepath:
-            lineno_str, separator, content = match.groups()
-            try:
-                lineno = int(lineno_str)
-                is_match = (separator == ':')
-                code_line = CodeLine(line_number=lineno, content=content, is_match=is_match)
-
-                # Start a new block if:
-                # 1. We don't have a current block
-                # 2. The line number is not consecutive with the previous block
-                if not current_match or (lineno > current_match.end_line + 1):
-                    if current_match:
-                        if current_filepath not in blocks_by_file:
-                            blocks_by_file[current_filepath] = []
-                        blocks_by_file[current_filepath].append(current_match)
-                    current_match = CodeMatch(
-                        filepath=current_filepath,
-                        start_line=lineno,
-                        end_line=lineno,
-                        lines=[code_line]
-                    )
-                else:
-                    # Continue the current block
-                    current_match.lines.append(code_line)
-                    current_match.end_line = lineno
-            except ValueError:
-                console.print(f"[yellow]Warning: Could not parse line number from rg output: {line}[/yellow]")
-
-    # Add the last block if any
-    if current_match:
-        if current_filepath not in blocks_by_file:
-            blocks_by_file[current_filepath] = []
-        blocks_by_file[current_filepath].append(current_match)
-
-    # Merge blocks for each file
-    result.matches = []
-    for filepath, blocks in blocks_by_file.items():
-        if not blocks:
-            continue
-            
-        # Sort blocks by start line
-        blocks.sort(key=lambda b: b.start_line)
-        
-        # Merge overlapping or adjacent blocks
-        current_block = blocks[0]
-        for next_block in blocks[1:]:
-            if next_block.start_line <= current_block.end_line + 1:
-                # Merge blocks
-                current_block.end_line = max(current_block.end_line, next_block.end_line)
-                current_block.lines.extend(next_block.lines)
-            else:
-                # Start a new block
-                result.matches.append(current_block)
-                current_block = next_block
-        
-        # Add the last block
-        result.matches.append(current_block)
+    # --- Parse Match Lines ---
+    _parse_match_lines(output_lines, result)
 
     # --- Parse Stats Section ---
     _parse_rg_stats(result.rg_stats_raw, result)
@@ -378,6 +282,104 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
         console.print(f"[dim]First block found in: {first_match.filepath} (Lines {first_match.start_line}-{first_match.end_line})[/dim]")
 
     return result
+
+
+_match_line_regex = re.compile(r"^\s*(\d+)([:-])\s*(.*)$")
+
+def _is_match_line(line: str) -> bool:
+    return _match_line_regex.match(line) is not None
+
+def _is_separator_line(line: str) -> bool:
+    return line.strip() == "--"
+
+def _is_file_path_line(line: str) -> bool:
+    return not _is_match_line(line) and not _is_separator_line(line) and line.strip()
+
+def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
+    """Helper to parse the match lines and update the CodeMatchedResult."""
+
+    current_filepath: Optional[str] = None
+    current_match: Optional[CodeBlockMatch] = None
+    # Regex to capture line number, separator (: or -), and the line content
+    # It allows for potential leading/trailing whitespace around the content
+    line_regex = re.compile(r"^(\d+)([:-])(.*)$")
+    # Keep track of files seen to count unique files
+    files_seen = set()
+
+
+    def finalize_current_match():
+        """Helper function to add the current match to results if it exists."""
+        nonlocal current_match
+        if current_match:
+            result.matches.append(current_match)
+            current_match = None
+
+    for line in match_lines:
+        line_strip = line.strip()
+
+        # Skip empty lines
+        if not line_strip:
+            continue
+
+        # 1. Check for separator
+        if line_strip == "--":
+            finalize_current_match()
+            continue # Move to the next line
+
+        # 2. Check for code line pattern
+        match = line_regex.match(line)
+        if match:
+            if not current_filepath:
+                # Should not happen with valid rg output, but handle defensively
+                console.print(f"[yellow]Warning: Found code line '{line}' without preceding filepath.[/yellow]")
+                raise RuntimeError("Found code line without preceding filepath.")
+
+            line_number_str, separator, content = match.groups()
+            line_number = int(line_number_str)
+            is_match = (separator == ':')
+
+            code_line = CodeLine(
+                line_number=line_number,
+                content=content, # Keep original content including leading whitespace
+                is_match=is_match
+            )
+
+            if is_match:
+                result.total_lines_matched += 1
+
+            # If this is the first line of a new block (no current_match)
+            if current_match is None:
+                current_match = CodeBlockMatch(
+                    filepath=current_filepath,
+                    start_line=line_number,
+                    end_line=line_number, # Initial end line
+                    lines=[code_line]
+                )
+            else:
+                # Append to existing block
+                # Ensure file paths match (should always be true in valid rg output)
+                if current_match.filepath != current_filepath:
+                     console.print(f"[yellow]Warning: File path mismatch within block. Expected {current_match.filepath}, got {current_filepath}[/yellow]")
+                     raise RuntimeError("File path mismatch within block.")
+                current_match.lines.append(code_line)
+                # Update end_line (no need to check min for start_line as rg output is sorted)
+                current_match.end_line = line_number
+
+        # 3. Check for file path (if it's not a separator or code line)
+        else:
+            # Finalize any previous match before starting a new file
+            finalize_current_match()
+
+            # Assume this line is a file path
+            current_filepath = line # Store the full line as the path
+            if current_filepath not in files_seen:
+                 result.total_files_matched += 1
+                 files_seen.add(current_filepath)
+            # Reset current_match as we are starting a new file context
+            current_match = None
+
+    # After the loop, add the last processed match if it exists
+    finalize_current_match()
 
 
 def _parse_rg_stats(stats_str: str, result: CodeMatchedResult):
