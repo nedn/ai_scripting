@@ -18,8 +18,6 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
 
-# RG_MAX_SAMPLE_LINES = 10 # No longer needed for direct display in gather_search_results
-
 # Rich console for better output
 console = Console()
 
