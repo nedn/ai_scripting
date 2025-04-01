@@ -231,25 +231,17 @@ def main():
     parser.add_argument(
         "-y", "--yes", action="store_true", help="Automatically confirm all steps (Use with caution!)."
     )
-    parser.add_argument(
-        "--model",
-        default=GEMINI_2_FLASH, # Default to faster model
-        choices=[GEMINI_2_FLASH, GEMINI_2_5_PRO],
-        help="Select the Gemini model to use for generation steps."
-    )
-
 
     args = parser.parse_args()
 
     folder_path = args.folder
     user_prompt = args.prompt
-    selected_model = args.model # Store selected model
 
     if not Path(folder_path).is_dir():
         console.print(f"[bold red]Error: Folder not found: {folder_path}[/bold red]")
         sys.exit(1)
 
-    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nLLM Model: {selected_model}", title="Configuration", expand=False))
+    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {GEMINI_2_5_PRO}\nReplacement model: {GEMINI_2_FLASH}", title="Configuration", expand=False))
 
     # --- Step 1: Plan & Search ---
     console.print("\n[bold]--- Step 1: Search Plan ---[/bold]")
@@ -288,10 +280,10 @@ def main():
             break
 
         action = Prompt.ask(
-             f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action ([p]roceed with replace, [m]odify rg args, [a]bort):",
+             f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action (proceed, modify `rg` args, or abort):",
              choices=["p", "m", "a"],
              default="p",
-             show_choices=False, # Keep prompt short
+             show_choices=True, # Keep prompt short
          ).lower()
 
 

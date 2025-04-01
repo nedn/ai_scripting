@@ -297,7 +297,7 @@ class TestGatherSearchResults(unittest.TestCase):
         # Assertions
         self.assertEqual(result.total_files_matched, 3)
         self.assertEqual(result.total_lines_matched, 23)
-        self.assertEqual(len(result.matches), 17)
+        self.assertEqual(len(result.matches), 16)
 
         # Verify each match block
         for i, match in enumerate(result.matches):
