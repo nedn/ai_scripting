@@ -231,9 +231,10 @@ class TestGatherSearchResults(unittest.TestCase):
 /path/to/file2.py
 5-    def another_function():
 6:    print("test2")
-7-    return False
+7:    print("test3")
+8-    return False
 
-2 matches
+3 matches
 3 matched lines
 2 files contained matches
 """

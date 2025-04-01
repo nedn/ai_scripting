@@ -270,19 +270,7 @@ def main():
     search_result: CodeMatchedResult = CodeMatchedResult() # Initialize empty result
 
     while True:
-        # Ensure essential flags are in the args str before running
-        temp_args = shlex.split(current_rg_args_str)
-        needs_update = False
-        if not any(re.match(r"-[ABC]", arg) for arg in temp_args): temp_args.append("-C 3"); needs_update=True
-        if "-n" not in temp_args and "--line-number" not in temp_args: temp_args.append("-n"); needs_update=True
-        if "--with-filename" not in temp_args and "-H" not in temp_args: temp_args.append("--with-filename"); needs_update=True
-        if "--stats" not in temp_args: temp_args.append("--stats"); needs_update=True
-        if needs_update:
-             current_rg_args_str = " ".join(shlex.quote(arg) for arg in temp_args)
-             console.print(f"[yellow]Ensured required flags are present. Updated rg args:[/yellow] [cyan]{current_rg_args_str}[/cyan]")
-
         console.print(Panel(f"rg {current_rg_args_str} {shlex.quote(folder_path)}", title="Current Search Command", expand=False))
-
         search_result = gather_search_results(current_rg_args_str, folder_path)
 
         if not search_result.matches:
@@ -300,9 +288,8 @@ def main():
             break
 
         action = Prompt.ask(
-             f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action:",
+             f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action ([p]roceed with replace, [m]odify rg args, [a]bort):",
              choices=["p", "m", "a"],
-             prompt="[P]roceed with replace, [M]odify rg args, [A]bort?",
              default="p",
              show_choices=False, # Keep prompt short
          ).lower()

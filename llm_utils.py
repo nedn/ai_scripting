@@ -23,7 +23,7 @@ GEMINI_2_5_PRO = "gemini-2.5-pro-exp-03-25"
 def call_llm(prompt: str, purpose: str = "LLM Interaction",
              model_name=GEMINI_2_FLASH) -> str:
     """Calls the configured Google AI model."""
-    console.print(f"[cyan]Calling LLM for: {purpose}...[/cyan]")
+    console.print(f"[cyan]Calling LLM model {model_name} for: {purpose}...[/cyan]")
     # Assuming genai setup happens elsewhere or API_KEY is valid
     # Simplified for brevity - replace with your actual API call logic
     try:

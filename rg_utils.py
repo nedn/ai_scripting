@@ -117,22 +117,19 @@ Based *only* on this request, suggest a single `rg` (ripgrep) command's argument
 Your goal is to find the lines that *might* need modification, along with surrounding code for context.
 Focus on creating a pattern that accurately captures the code snippets the user wants to change.
 
-Essential `rg` flags for this task:
-- -e PATTERN or -F PATTERN: The search pattern (regex or fixed string).
-- -t TYPE: (Recommended) Search only specific file types (e.g., `-t py`).
-- -n: Show line numbers (required for parsing).
-- --with-filename: Show filename for each match (required for parsing).
-- -A NUM: Show NUM lines after each match.
-- -B NUM: Show NUM lines before each match.
-- OR -C NUM: Show NUM lines of context (equivalent to -A NUM -B NUM). A value of 3-5 is usually good.
-- --stats: Include summary statistics (required for parsing).
+Only use the following `rg` flags for this task:
+--regexp=PATTERN: A pattern to search for. This option can be provided multiple times,
+    where all patterns given are searched. Lines matching at least one of the provided patterns are printed.
+--type=TYPE: This flag limits ripgrep to searching files matching TYPE. Multiple --type flags may be provided.
+--fixed-strings: Treat all patterns as literals instead of as regular expressions. When this flag is used, 
+    special regular expression meta characters such as .().* should not need be escaped.
 
 Your output should be ONLY the `rg` command arguments, suitable for appending to `rg ... {folder}`.
-Example output format: `-e "some_pattern" -t py -n --with-filename -C 3 --stats`
-Another example: `-F "exact string" -w -i -n --with-filename -B 2 -A 2 --stats`
+Example output format: `--regexp="some_pattern.*" --type=py`
+Another example: `--fixed-strings "exact string" --type=h --type=c`
 
 Do not include the `rg` command itself or the folder path in your output. Just provide the arguments.
-Start the arguments directly. Ensure `-n`, `--with-filename`, `--stats`, and some context flag (-A/-B or -C) are included.
+Start the arguments directly. 
 Enclose regex patterns in double quotes if they contain spaces or special characters.
 """)
 
@@ -177,33 +174,19 @@ Enclose regex patterns in double quotes if they contain spaces or special charac
         console.print(f"[yellow]Warning: Could not properly parse suggested rg args: {e}. Proceeding with raw string, but flag check might be inaccurate.[/yellow]")
         current_args_list = cleaned_args.split() # Fallback
 
-    required_flags_present = {
-        "context": any(re.match(r"-[ABC]", arg) for arg in current_args_list),
-        "line_number": "-n" in current_args_list or "--line-number" in current_args_list,
-        "filename": "--with-filename" in current_args_list or "-H" in current_args_list,
-        "stats": "--stats" in current_args_list
-    }
+    # Ensure generated args only contain allowed flags
+    allowed_flags = ["--regexp", "--type", "--fixed-strings"]
+    for arg in current_args_list:
+        if arg.startswith("--") and not any(arg.startswith(flag) for flag in allowed_flags):
+            console.print("[bold red]Error: Generated rg args contain invalid flags.[/bold red]")
+            raise ValueError("Invalid flag '" + arg + "' in LLM-generated rg command: " + suggested_args_str)
 
-    missing_flags = []
-    if not required_flags_present["context"]:
-        missing_flags.append("-C 3") # Default context
-    if not required_flags_present["line_number"]:
-        missing_flags.append("-n")
-    if not required_flags_present["filename"]:
-        missing_flags.append("--with-filename")
-    if not required_flags_present["stats"]:
-        missing_flags.append("--stats")
-
-    if missing_flags:
-        cleaned_args += " " + " ".join(missing_flags)
-        console.print(f"[yellow]Info: Added missing required flags: {' '.join(missing_flags)}[/yellow]")
-
-    # Remove flags that interfere with context/line parsing if present
-    flags_to_remove = {'-l', '--files-with-matches', '--json', '-o', '--only-matching', '--count', '--files-without-match', '--count-matches'}
-    final_args_list = [arg for arg in shlex.split(cleaned_args) if arg not in flags_to_remove]
+    # Add required flags if missing
+    proper_context = "--context=5" # TODO: Make this dynamic based on the user prompt
+    current_args_list += ["--stats", "--line-number", "--heading", proper_context]
 
     # Reconstruct the args string
-    cleaned_args = " ".join(shlex.quote(arg) for arg in final_args_list)
+    cleaned_args = " ".join(shlex.quote(arg) for arg in current_args_list)
 
     return cleaned_args.strip()
 
@@ -220,11 +203,11 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
         A CodeMatchedResult object containing parsed matches and stats.
     """
     args_list = shlex.split(rg_args_str)
-    # Ensure required flags are present (redundant check, but safe)
-    if "-n" not in args_list and "--line-number" not in args_list: args_list.append("-n")
-    if "--with-filename" not in args_list and "-H" not in args_list: args_list.append("--with-filename")
-    if "--stats" not in args_list: args_list.append("--stats")
-    if not any(re.match(r"-[ABC]", arg) for arg in args_list): args_list.append("-C 3") # Add default context if missing
+    # Check required flags are present, raise error if not
+    required_flags = ["--stats", "--line-number", "--heading", "--context"]
+    for flag in required_flags:
+        if not any(arg.startswith(flag) for arg in args_list):
+            raise ValueError("Missing required flag '" + flag + "' in rg command: " + rg_args_str)
 
     rg_result = run_rg(args_list, folder, check=False) # Don't raise on exit code 1 (no matches)
 
