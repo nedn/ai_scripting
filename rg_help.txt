@@ -1,0 +1,94 @@
+ripgrep (rg) Essentials for Code Refactoring Search
+
+Purpose: Recursively searches directories for lines matching a regex pattern. Respects gitignore rules and skips hidden/binary files by default. Used here to **find** code locations for LLM-based replacement.
+
+Core Usage:
+  rg [OPTIONS] PATTERN [PATH ...]
+  rg [OPTIONS] -e PATTERN ... [PATH ...]
+  rg [OPTIONS] -f PATTERNFILE ... [PATH ...]
+
+Key Arguments:
+  PATTERN          : The regular expression to search for.
+                     Use '-e' or '--' for patterns starting with '-'.
+  PATH ...         : File(s) or director(y/ies) to search recursively. Overrides ignore rules.
+
+Pattern Specification Options:
+  -e PATTERN, --regexp=PATTERN
+                     Specify a pattern. Can be used multiple times. Treats positional args as paths.
+  -f PATTERNFILE, --file=PATTERNFILE
+                     Read patterns from a file (one per line). Treats positional args as paths.
+  -F, --fixed-strings
+                     Treat patterns as literal strings, not regex. Disables regex metacharacters.
+  -s, --case-sensitive
+                     Force case-sensitive search (default).
+  -i, --ignore-case
+                     Force case-insensitive search. Uses Unicode simple case folding.
+  -S, --smart-case
+                     Search case-insensitively if pattern is all lowercase, sensitively otherwise. (Default behavior often mimics this).
+  -w, --word-regexp
+                     Only match whole words (equivalent to `\bPATTERN\b`).
+  -x, --line-regexp
+                     Only match whole lines (equivalent to `^PATTERN$`).
+  -U, --multiline
+                     Enable matching across multiple lines (allows patterns like \n).
+                     Use with `(?s)` flag in regex or `--multiline-dotall` for '.' to match newlines.
+                     *Warning*: Can be slower and use more memory.
+  -P, --pcre2        Use the PCRE2 regex engine (supports look-around, backreferences). Optional feature.
+  --engine=ENGINE    Specify regex engine (default, pcre2, auto). 'auto' tries to pick based on pattern features.
+
+File Filtering Options (Controlling *Where* to Search):
+  -g GLOB, --glob=GLOB
+                     Include/exclude files/directories matching the glob pattern (gitignore syntax). Overrides ignores. Precede with '!' to exclude (e.g., `-g '!*.min.js'`). Use multiple times. Later globs take precedence. Use `foo/**` to search within directory `foo`.
+  --iglob=GLOB       Case-insensitive version of `--glob`.
+  -t TYPE, --type=TYPE
+                     Search only files of TYPE (e.g., `py`, `java`, `js`). Use multiple times. Lower precedence than `-g` and ignores. Use `--type-list` to see types. `-t all` searches only recognized types.
+  -T TYPE, --type-not=TYPE
+                     Do NOT search files matching TYPE. `-T all` searches only unrecognized types.
+  --type-add=TYPESPEC
+                     Add custom file type definitions (e.g., `'mytype:*.xyz'`).
+  --type-clear=TYPE  Clear existing definitions for TYPE.
+  --type-list        Show all known file types and their globs.
+  -., --hidden       Search hidden files/directories (starting with '.').
+  --no-ignore        Disable all ignore file (.gitignore, .rgignore, etc.) processing.
+  -u, --unrestricted
+                     Reduce filtering: -u is --no-ignore, -uu adds --hidden, -uuu adds --binary (searches binary files).
+  -L, --follow       Follow symbolic links (default is off).
+  -d NUM, --max-depth=NUM
+                     Limit directory traversal depth. 0 searches only explicit paths. 1 searches direct children.
+  --max-filesize=NUM+SUFFIX?
+                     Ignore files larger than NUM (e.g., 10M, 2G).
+
+Output Control Options (Controlling *What* Information is Returned):
+  -l, --files-with-matches
+                     **Crucial for finding target files**: Print only the paths of files containing matches. Suppresses match content.
+  --files-without-match
+                     Print paths of files *not* containing matches.
+  -n, --line-number
+                     Show 1-based line number for each match (default for tty).
+  -N, --no-line-number
+                     Suppress line numbers.
+  --column           Show 1-based column number of the *start* of the match on the line (implies -n).
+  -b, --byte-offset
+                     Show 0-based byte offset of the line or match (-o) start.
+  -H, --with-filename
+                     Print the filename for each match (default when searching multiple files).
+  -I, --no-filename
+                     Suppress filenames (default for single file/stdin).
+  -o, --only-matching
+                     Print only the matched parts of lines, each on a new line.
+  -A NUM, --after-context=NUM
+                     Show NUM lines after each match.
+  -B NUM, --before-context=NUM
+                     Show NUM lines before each match.
+  -C NUM, --context=NUM
+                     Show NUM lines before and after (equivalent to -A NUM -B NUM).
+  --json             Output results in JSON Lines format (useful for structured parsing, implicitly enables --stats). Cannot be used with `-l`, `-c`, etc.
+
+Important Defaults:
+  * Uses Rust's regex engine (fast, Unicode-aware by default).
+  * Case-sensitive search.
+  * Respects `.gitignore`, `.rgignore`, `.ignore` files.
+  * Skips hidden files/directories.
+  * Skips binary files.
+  * Searches recursively.
+  * Does not follow symbolic links.
