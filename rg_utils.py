@@ -247,7 +247,7 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
         first_match = result.matches[0]
         console.print(f"[dim]First block found in: {first_match.filepath} (Lines {first_match.start_line}-{first_match.end_line})[/dim]")
         console.print(f"[dim]Code block:[/dim]")
-        console.print(first_match.code_block)
+        console.print(first_match.code_block_with_line_numbers)
 
     return result
 

@@ -34,9 +34,13 @@ class TestCodeBlock(unittest.TestCase):
         self.assertEqual(self.code_block.end_line, 3)
         self.assertEqual(len(self.code_block.lines), 3)
 
-    def test_code_block_property(self):
+    def test_code_block_with_line_numbers(self):
         expected = "1: context line\n2: matched line\n3: another context"
-        self.assertEqual(self.code_block.code_block, expected)
+        self.assertEqual(self.code_block.code_block_with_line_numbers, expected)
+
+    def test_code_block_without_line_numbers(self):
+        expected = "context line\nmatched line\nanother context"
+        self.assertEqual(self.code_block.code_block_without_line_numbers, expected)
 
     def test_matched_lines_numbers(self):
         self.assertEqual(self.code_block.matched_lines_numbers, [2])

@@ -26,9 +26,14 @@ class CodeBlock:
     _original_file_content: str = field(default=None, init=False)
 
     @property
-    def code_block(self) -> str:
+    def code_block_with_line_numbers(self) -> str:
         """Returns the full code block as a single string with line numbers."""
         return "\n".join(f"{line.line_number}: {line.content}" for line in self.lines)
+    
+    @property
+    def code_block_without_line_numbers(self) -> str:
+        """Returns the full code block as a single string without line numbers."""
+        return "\n".join(line.content for line in self.lines)
 
     @property
     def matched_lines_numbers(self) -> List[int]:

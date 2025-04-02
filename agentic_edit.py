@@ -7,10 +7,11 @@ import sys
 import re
 from pathlib import Path
 from typing import List, Dict, Optional
-from dataclasses import dataclass, field # Added dataclasses
+from dataclasses import dataclass, field
 from google import genai
 from rg_utils import CodeBlock, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
 from llm_utils import call_llm, GEMINI_2_FLASH, GEMINI_2_5_PRO
+from ai_edit import edit_code_blocks, edit_file_with_edited_block
 
 from dotenv import load_dotenv
 from rich.console import Console
@@ -20,7 +21,6 @@ from rich.table import Table
 
 # Rich console for better output
 console = Console()
-
 
 # (generate_replacement_prompt needs changes later to accept a CodeMatch object)
 # def generate_replacement_prompt(user_prompt: str, filename: str, matched_lines: List[Tuple[int, str]]) -> str:
@@ -208,7 +208,147 @@ def apply_changes(filepath: str, replacements: Dict[int, str]) -> bool:
         console.print(f"[bold red]An unexpected error occurred while applying changes to {filepath}: {e}[/bold red]")
         return False
 
-# --- Main Execution ---
+def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_confirm: bool = False) -> bool:
+    """
+    Process AI edits for the search results.
+    
+    Args:
+        search_result: The search results containing matched code blocks
+        user_prompt: The user's refactoring request
+        auto_confirm: Whether to automatically confirm changes
+        
+    Returns:
+        bool: True if changes were applied successfully, False otherwise
+    """
+    console.print(f"\n[bold]--- Step 2: Generate Replacements (LLM) ---[/bold]")
+    console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
+
+    # Use the edit_code_blocks function from ai_edit.py
+    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GEMINI_2_FLASH)
+
+    # --- Step 3: Review and Apply ---
+    console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
+
+    table = Table(title="Proposed Changes Summary (File Level)")
+    table.add_column("File", style="cyan", max_width=60)
+    table.add_column("Lines to Change", style="magenta")
+    table.add_column("Example Change (First Affected Line)", style="green")
+
+    # Consolidate changes per file for review
+    files_to_change_count = 0
+    for block in edited_blocks:
+        if not block.lines:
+            continue
+
+        lines_to_change_nums = [line.line_number for line in block.lines]
+        
+        # Find the first line that is actually different
+        first_changed_lineno = -1
+        original_line_content = "[Original line not available for comparison]"
+        new_content = "[No changes parsed?]"
+        try:
+            original_file_content = Path(block.filepath).read_text(encoding='utf-8').splitlines()
+            found_diff = False
+            for line in block.lines:
+                if line.line_number > 0 and line.line_number <= len(original_file_content):
+                    original_content_for_line = original_file_content[line.line_number-1]
+                    if original_content_for_line != line.content:
+                        first_changed_lineno = line.line_number
+                        original_line_content = original_content_for_line
+                        new_content = line.content
+                        found_diff = True
+                        break
+                else:
+                    console.print(f"[yellow]Warning: Line {line.line_number} for {block.filepath} is out of bounds for original file read.[/yellow]")
+
+            if not found_diff and lines_to_change_nums:
+                first_changed_lineno = lines_to_change_nums[0]
+                if first_changed_lineno > 0 and first_changed_lineno <= len(original_file_content):
+                    original_line_content = original_file_content[first_changed_lineno-1]
+                else:
+                    original_line_content = "[Line out of bounds]"
+                new_content = block.lines[0].content
+
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not read original file {block.filepath} for diff: {e}[/yellow]")
+            if lines_to_change_nums:
+                first_changed_lineno = lines_to_change_nums[0]
+                new_content = block.lines[0].content
+
+        # Format example change
+        example_change = "[No changes detected or error reading file]"
+        if first_changed_lineno != -1:
+            if original_line_content != new_content:
+                example_change = f"[red]- {first_changed_lineno}: {original_line_content.strip()}[/red]\n[green]+ {first_changed_lineno}: {new_content.strip()}[/green]"
+            else:
+                example_change = f"{first_changed_lineno}: {original_line_content.strip()} [dim](No change)[/dim]"
+
+        # Display line numbers concisely (e.g., 10-15, 25, 30-32)
+        line_ranges = []
+        if lines_to_change_nums:
+            start_range = lines_to_change_nums[0]
+            end_range = start_range
+            for i in range(1, len(lines_to_change_nums)):
+                if lines_to_change_nums[i] == end_range + 1:
+                    end_range = lines_to_change_nums[i]
+                else:
+                    if start_range == end_range:
+                        line_ranges.append(str(start_range))
+                    else:
+                        line_ranges.append(f"{start_range}-{end_range}")
+                    start_range = lines_to_change_nums[i]
+                    end_range = start_range
+            # Add the last range
+            if start_range == end_range:
+                line_ranges.append(str(start_range))
+            else:
+                line_ranges.append(f"{start_range}-{end_range}")
+
+        line_summary = ", ".join(line_ranges)
+
+        table.add_row(
+            block.filepath,
+            line_summary,
+            example_change
+        )
+        files_to_change_count += 1
+
+    console.print(table)
+
+    if auto_confirm:
+        console.print("[yellow]--yes flag provided, automatically applying all changes.[/yellow]")
+        confirm_apply = True
+    elif files_to_change_count > 0:
+        confirm_apply = Confirm.ask(f"\nApply these changes to {files_to_change_count} file(s)?", default=False)
+    else:
+        console.print("[yellow]No files identified with actual changes to apply.[/yellow]")
+        confirm_apply = False
+
+    if confirm_apply:
+        console.print("\n[bold]Applying changes...[/bold]")
+        files_successfully_changed_count = 0
+        files_with_errors = 0
+        for block in edited_blocks:
+            try:
+                edit_file_with_edited_block(block)
+                files_successfully_changed_count += 1
+                console.print(f"[green]Changes applied to {block.filepath}[/green]")
+            except Exception as e:
+                console.print(f"[bold red]Error applying changes to {block.filepath}: {e}[/bold red]")
+                files_with_errors += 1
+
+        console.print(f"\n[bold green]Finished applying changes.[/bold green]")
+        console.print(f"Successfully modified {files_successfully_changed_count} file(s).")
+        if files_with_errors > 0:
+            console.print(f"[bold yellow]Could not apply changes to {files_with_errors} file(s) due to errors during write.[/bold yellow]")
+        # Calculate files skipped because no effective change was made
+        skipped_no_change = files_to_change_count - files_successfully_changed_count - files_with_errors
+        if skipped_no_change > 0:
+            console.print(f"[dim]{skipped_no_change} file(s) were skipped as the proposed changes matched the original content.[/dim]")
+        return True
+    else:
+        console.print("[bold yellow]Changes discarded by user or no changes to apply.[/bold yellow]")
+        return False
 
 def main():
     parser = argparse.ArgumentParser(
@@ -256,7 +396,6 @@ def main():
         else:
              console.print(f"Suggested rg args: [cyan]{current_rg_args_str}[/cyan]")
 
-
     search_result: CodeMatchedResult = CodeMatchedResult() # Initialize empty result
 
     while True:
@@ -272,7 +411,6 @@ def main():
              elif not search_result.rg_stats_raw:
                  console.print("[yellow]Warning: rg did not produce statistics output.[/yellow]")
 
-
         if args.yes:
             console.print("[yellow]--yes flag provided, automatically proceeding with search results.[/yellow]")
             break
@@ -281,9 +419,8 @@ def main():
              f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action (proceed, modify `rg` args, or abort):",
              choices=["p", "m", "a"],
              default="p",
-             show_choices=True, # Keep prompt short
+             show_choices=True,
          ).lower()
-
 
         if action == 'p':
             if not search_result.matches:
@@ -301,185 +438,8 @@ def main():
         console.print("[bold yellow]No code blocks matched the final search criteria. Exiting.[/bold yellow]")
         sys.exit(0)
 
-    console.print(f"\n[bold]--- Step 2: Generate Replacements (LLM) ---[/bold]")
-    console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
-
-    # This dictionary will store the *final* proposed changes for each file.
-    # Key: filepath, Value: Dict[lineno, new_content]
-    all_file_replacements: Dict[str, Dict[int, str]] = {}
-    llm_errors = 0
-
-    for i, code_match in enumerate(search_result.matches):
-        console.print(f"\nProcessing block {i+1}/{len(search_result.matches)}: [cyan]{code_match.filepath}[/cyan] (Lines {code_match.start_line}-{code_match.end_line})")
-
-        original_block_lines_map = {line.line_number: line for line in code_match.lines}
-
-        replacement_prompt = generate_replacement_prompt(user_prompt, code_match)
-        # print(f"\nDEBUG: LLM Prompt for block {i+1}:\n---\n{replacement_prompt}\n---\n") # Uncomment for debugging
-
-        llm_output = call_llm(replacement_prompt, f"Generating replacement for block {i+1}", model_name=selected_model)
-
-        if llm_output.startswith("Error:"):
-            console.print(f"[bold red]LLM Error for block {i+1}. Skipping replacements for this block.[/bold red]")
-            console.print(f"[dim]Error details: {llm_output}[/dim]")
-            llm_errors += 1
-            continue
-
-        # print(f"\nDEBUG: LLM Raw Output for block {i+1}:\n---\n{llm_output}\n---\n") # Uncomment for debugging
-
-        block_replacements = parse_llm_replacement_output(llm_output, original_block_lines_map)
-
-        if block_replacements:
-             # Merge the replacements for this block into the main dictionary for the file
-             if code_match.filepath not in all_file_replacements:
-                  all_file_replacements[code_match.filepath] = {}
-
-             # Check for overlaps - later blocks might overwrite earlier ones if line numbers conflict.
-             # This is generally okay as the LLM is prompted with the full context each time.
-             for lineno, content in block_replacements.items():
-                   # Optional: Add check here if overwriting is undesired/unexpected
-                   # if lineno in all_file_replacements[code_match.filepath]:
-                   #      console.print(f"[yellow]Warning: Overwriting line {lineno} in {code_match.filepath} from a previous block.[/yellow]")
-                   all_file_replacements[code_match.filepath][lineno] = content
-        else:
-             console.print(f"[yellow]Warning: No valid replacements generated or parsed for block {i+1} ({code_match.filepath}).[/yellow]")
-
-
-    if llm_errors > 0:
-         console.print(f"[bold yellow]Warning: Encountered errors during LLM replacement generation for {llm_errors} block(s).[/bold yellow]")
-
-    if not all_file_replacements:
-        console.print("[bold yellow]No valid replacements were generated by the LLM or parsed correctly across all blocks. Exiting.[/bold yellow]")
-        sys.exit(0)
-
-    # --- Step 3: Review and Apply ---
-    console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
-
-    table = Table(title="Proposed Changes Summary (File Level)")
-    table.add_column("File", style="cyan", max_width=60)
-    table.add_column("Lines to Change", style="magenta")
-    table.add_column("Example Change (First Affected Line)", style="green")
-
-    # Consolidate changes per file for review
-    files_to_change_count = 0
-    for filepath, file_replacements_map in all_file_replacements.items():
-         if not file_replacements_map:
-              continue # Skip files where no replacements ended up being stored
-
-         lines_to_change_nums = sorted(file_replacements_map.keys())
-
-         # Find the first line number that is actually different
-         first_changed_lineno = -1
-         original_line_content = "[Original line not available for comparison]" # Fallback
-         new_content = "[No changes parsed?]"
-         try:
-             original_file_content = Path(filepath).read_text(encoding='utf-8').splitlines()
-             found_diff = False
-             for lineno in lines_to_change_nums:
-                  if lineno > 0 and lineno <= len(original_file_content):
-                       original_content_for_line = original_file_content[lineno-1]
-                       proposed_content = file_replacements_map[lineno]
-                       if original_content_for_line != proposed_content:
-                            first_changed_lineno = lineno
-                            original_line_content = original_content_for_line
-                            new_content = proposed_content
-                            found_diff = True
-                            break
-                  else: # Line number out of bounds? Should not happen if apply_changes logic is sound
-                       console.print(f"[yellow]Warning: Line {lineno} for {filepath} is out of bounds for original file read.[/yellow]")
-
-             if not found_diff and lines_to_change_nums: # Replacements exist but none differ
-                  first_changed_lineno = lines_to_change_nums[0]
-                  if first_changed_lineno > 0 and first_changed_lineno <= len(original_file_content):
-                       original_line_content = original_file_content[first_changed_lineno-1]
-                  else:
-                       original_line_content = "[Line out of bounds]"
-                  new_content = file_replacements_map[first_changed_lineno] # Should be same as original
-
-         except Exception as e:
-              console.print(f"[yellow]Warning: Could not read original file {filepath} for diff: {e}[/yellow]")
-              if lines_to_change_nums:
-                  first_changed_lineno = lines_to_change_nums[0]
-                  new_content = file_replacements_map[first_changed_lineno]
-
-         # Format example change
-         example_change = "[No changes detected or error reading file]"
-         if first_changed_lineno != -1:
-             if original_line_content != new_content:
-                 # Simple diff-like display for the example
-                 example_change = f"[red]- {first_changed_lineno}: {original_line_content.strip()}[/red]\n[green]+ {first_changed_lineno}: {new_content.strip()}[/green]"
-             else:
-                 example_change = f"{first_changed_lineno}: {original_line_content.strip()} [dim](No change)[/dim]"
-
-
-         # Display line numbers concisely (e.g., 10-15, 25, 30-32)
-         line_ranges = []
-         if lines_to_change_nums:
-              start_range = lines_to_change_nums[0]
-              end_range = start_range
-              for i in range(1, len(lines_to_change_nums)):
-                   if lines_to_change_nums[i] == end_range + 1:
-                        end_range = lines_to_change_nums[i]
-                   else:
-                        if start_range == end_range:
-                             line_ranges.append(str(start_range))
-                        else:
-                             line_ranges.append(f"{start_range}-{end_range}")
-                        start_range = lines_to_change_nums[i]
-                        end_range = start_range
-              # Add the last range
-              if start_range == end_range:
-                   line_ranges.append(str(start_range))
-              else:
-                   line_ranges.append(f"{start_range}-{end_range}")
-
-         line_summary = ", ".join(line_ranges)
-
-
-         table.add_row(
-              filepath,
-              line_summary,
-              example_change
-         )
-         files_to_change_count += 1
-
-    console.print(table)
-
-    if args.yes:
-        console.print("[yellow]--yes flag provided, automatically applying all changes.[/yellow]")
-        confirm_apply = True
-    elif files_to_change_count > 0 :
-        confirm_apply = Confirm.ask(f"\nApply these changes to {files_to_change_count} file(s)?", default=False)
-    else:
-        console.print("[yellow]No files identified with actual changes to apply.[/yellow]")
-        confirm_apply = False
-
-
-    if confirm_apply:
-        console.print("\n[bold]Applying changes...[/bold]")
-        files_successfully_changed_count = 0
-        files_with_errors = 0
-        for filepath, file_replacements_map in all_file_replacements.items():
-            if not file_replacements_map: # Skip if somehow empty
-                 continue
-            success = apply_changes(filepath, file_replacements_map)
-            if success:
-                 files_successfully_changed_count += 1
-            elif Path(filepath).exists(): # Only count as error if the file existed but writing failed
-                files_with_errors += 1
-
-        console.print(f"\n[bold green]Finished applying changes.[/bold green]")
-        console.print(f"Successfully modified {files_successfully_changed_count} file(s).")
-        if files_with_errors > 0:
-             console.print(f"[bold yellow]Could not apply changes to {files_with_errors} file(s) due to errors during write.[/bold yellow]")
-        # Calculate files skipped because no effective change was made
-        skipped_no_change = files_to_change_count - files_successfully_changed_count - files_with_errors
-        if skipped_no_change > 0:
-             console.print(f"[dim]{skipped_no_change} file(s) were skipped as the proposed changes matched the original content.[/dim]")
-
-
-    else:
-        console.print("[bold yellow]Changes discarded by user or no changes to apply.[/bold yellow]")
+    # Process AI edits
+    process_ai_edits(search_result, user_prompt, args.yes)
 
     console.print("\n[bold]Agentic Edit finished.[/bold]")
 
