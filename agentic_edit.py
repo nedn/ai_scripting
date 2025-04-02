@@ -10,7 +10,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from google import genai
 from rg_utils import CodeBlock, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
-from llm_utils import call_llm, GEMINI_2_FLASH, GEMINI_2_5_PRO
+from llm_utils import call_llm, GeminiModel
 from ai_edit import edit_code_blocks, edit_file_with_edited_block
 
 from dotenv import load_dotenv
@@ -224,7 +224,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GEMINI_2_FLASH)
+    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GeminiModel.GEMINI_2_0_FLASH)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
@@ -379,7 +379,7 @@ def main():
         console.print(f"[bold red]Error: Folder not found: {folder_path}[/bold red]")
         sys.exit(1)
 
-    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {GEMINI_2_5_PRO}\nReplacement model: {GEMINI_2_FLASH}", title="Configuration", expand=False))
+    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {GeminiModel.GEMINI_2_5_PRO_EXP}\nReplacement model: {GeminiModel.GEMINI_2_0_FLASH}", title="Configuration", expand=False))
 
     # --- Step 1: Plan & Search ---
     console.print("\n[bold]--- Step 1: Search Plan ---[/bold]")
