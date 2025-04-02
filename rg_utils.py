@@ -5,8 +5,8 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 from rich.console import Console
-from llm_utils import call_llm, GEMINI_2_5_PRO
-from code_block import CodeMatchedResult, CodeBlock, CodeLine
+from llm_utils import call_llm, GeminiModel
+from code_block import CodeMatchedResult, CodeBlock, CodeLine, MatchedLine
 
 console = Console()
 
@@ -101,7 +101,7 @@ Enclose regex patterns in double quotes if they contain spaces or special charac
 """)
 
     suggested_args_str = call_llm(
-         prompt, "Suggesting rg command", model_name=GEMINI_2_5_PRO # Use more capable model
+         prompt, "Suggesting rg command", model=GeminiModel.GEMINI_2_5_PRO_EXP # Use more capable model
     )
 
     if not suggested_args_str or suggested_args_str.startswith("Error:"):
@@ -306,7 +306,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
             line_number = int(line_number_str)
             is_match = (separator == ':')
 
-            code_line = CodeLine(
+            code_line = MatchedLine(
                 line_number=line_number,
                 content=content, # Keep original content including leading whitespace
                 is_match=is_match

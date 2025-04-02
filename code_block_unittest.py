@@ -1,9 +1,15 @@
 import unittest
-from code_block import CodeLine, CodeBlock, CodeMatchedResult
+from code_block import CodeLine, MatchedLine, CodeBlock, CodeMatchedResult
 
 class TestCodeLine(unittest.TestCase):
     def test_code_line_creation(self):
-        line = CodeLine(line_number=1, content="test line", is_match=True)
+        line = CodeLine(line_number=1, content="test line")
+        self.assertEqual(line.line_number, 1)
+        self.assertEqual(line.content, "test line")
+
+class TestMatchedLine(unittest.TestCase):
+    def test_matched_line_creation(self):
+        line = MatchedLine(line_number=1, content="test line", is_match=True)
         self.assertEqual(line.line_number, 1)
         self.assertEqual(line.content, "test line")
         self.assertTrue(line.is_match)
@@ -11,9 +17,9 @@ class TestCodeLine(unittest.TestCase):
 class TestCodeBlock(unittest.TestCase):
     def setUp(self):
         self.lines = [
-            CodeLine(line_number=1, content="context line", is_match=False),
-            CodeLine(line_number=2, content="matched line", is_match=True),
-            CodeLine(line_number=3, content="another context", is_match=False)
+            MatchedLine(line_number=1, content="context line", is_match=False),
+            MatchedLine(line_number=2, content="matched line", is_match=True),
+            MatchedLine(line_number=3, content="another context", is_match=False)
         ]
         self.code_block = CodeBlock(
             filepath="test.py",
@@ -38,8 +44,8 @@ class TestCodeBlock(unittest.TestCase):
 class TestCodeMatchedResult(unittest.TestCase):
     def setUp(self):
         self.lines = [
-            CodeLine(line_number=1, content="matched line", is_match=True),
-            CodeLine(line_number=2, content="another match", is_match=True)
+            MatchedLine(line_number=1, content="matched line", is_match=True),
+            MatchedLine(line_number=2, content="another match", is_match=True)
         ]
         self.code_block = CodeBlock(
             filepath="test.py",
