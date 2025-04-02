@@ -224,7 +224,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GeminiModel.GEMINI_2_0_FLASH)
+    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GeminiModel.GEMINI_2_0_FLASH_THINKING_EXP)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
@@ -235,7 +235,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     table.add_column("Example Change (First Affected Line)", style="green")
 
     # Consolidate changes per file for review
-    files_to_change_count = 0
+    files_to_change = set()
     for block in edited_blocks:
         if not block.lines:
             continue
@@ -311,15 +311,15 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
             line_summary,
             example_change
         )
-        files_to_change_count += 1
+        files_to_change.add(block.filepath)
 
     console.print(table)
 
     if auto_confirm:
         console.print("[yellow]--yes flag provided, automatically applying all changes.[/yellow]")
         confirm_apply = True
-    elif files_to_change_count > 0:
-        confirm_apply = Confirm.ask(f"\nApply these changes to {files_to_change_count} file(s)?", default=False)
+    elif files_to_change:
+        confirm_apply = Confirm.ask(f"\nApply these changes to {len(files_to_change)} file(s)?", default=False)
     else:
         console.print("[yellow]No files identified with actual changes to apply.[/yellow]")
         confirm_apply = False
@@ -327,7 +327,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     if confirm_apply:
         console.print("\n[bold]Applying changes...[/bold]")
         files_successfully_changed = set()
-        files_with_errors = 0
+        files_with_errors = set()
         for block in edited_blocks:
             try:
                 edit_file_with_edited_block(block)
@@ -335,14 +335,14 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
                 console.print(f"[green]Changes applied to {block.filepath}[/green]")
             except Exception as e:
                 console.print(f"[bold red]Error applying changes to {block.filepath}: {e}[/bold red]")
-                files_with_errors += 1
+                files_with_errors.add(block.filepath)
 
         console.print(f"\n[bold green]Finished applying changes.[/bold green]")
         console.print(f"Successfully modified {len(files_successfully_changed)} file(s).")
-        if files_with_errors > 0:
-            console.print(f"[bold yellow]Could not apply changes to {files_with_errors} file(s) due to errors during write.[/bold yellow]")
-        # Calculate files skipped because no effective change was made
-        skipped_no_change = files_to_change_count - len(files_successfully_changed) - files_with_errors
+        if files_with_errors:
+            console.print(f"[bold yellow]Could not apply changes to {len(files_with_errors)} file(s) due to errors during write.[/bold yellow]")
+        # Calculate files skipped because no effective change was made or due to errors
+        skipped_no_change = len(files_to_change) - len(files_successfully_changed) - len(files_with_errors)
         if skipped_no_change > 0:
             console.print(f"[dim]{skipped_no_change} file(s) were skipped as the proposed changes matched the original content.[/dim]")
         return True
