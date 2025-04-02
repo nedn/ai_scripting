@@ -326,23 +326,23 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
 
     if confirm_apply:
         console.print("\n[bold]Applying changes...[/bold]")
-        files_successfully_changed_count = 0
+        files_successfully_changed = set()
         files_with_errors = 0
         for block in edited_blocks:
             try:
                 edit_file_with_edited_block(block)
-                files_successfully_changed_count += 1
+                files_successfully_changed.add(block.filepath)
                 console.print(f"[green]Changes applied to {block.filepath}[/green]")
             except Exception as e:
                 console.print(f"[bold red]Error applying changes to {block.filepath}: {e}[/bold red]")
                 files_with_errors += 1
 
         console.print(f"\n[bold green]Finished applying changes.[/bold green]")
-        console.print(f"Successfully modified {files_successfully_changed_count} file(s).")
+        console.print(f"Successfully modified {len(files_successfully_changed)} file(s).")
         if files_with_errors > 0:
             console.print(f"[bold yellow]Could not apply changes to {files_with_errors} file(s) due to errors during write.[/bold yellow]")
         # Calculate files skipped because no effective change was made
-        skipped_no_change = files_to_change_count - files_successfully_changed_count - files_with_errors
+        skipped_no_change = files_to_change_count - len(files_successfully_changed) - files_with_errors
         if skipped_no_change > 0:
             console.print(f"[dim]{skipped_no_change} file(s) were skipped as the proposed changes matched the original content.[/dim]")
         return True
