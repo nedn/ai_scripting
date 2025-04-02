@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from rg_utils import gather_search_results, CodeMatchedResult, CodeBlockMatch, CodeLine
+from rg_utils import gather_search_results, CodeMatchedResult, CodeBlock, CodeLine
 
 
 _complex_rg_output = """\
@@ -301,7 +301,7 @@ class TestGatherSearchResults(unittest.TestCase):
 
         # Verify each match block
         for i, match in enumerate(result.matches):
-            self.assertIsInstance(match, CodeBlockMatch)
+            self.assertIsInstance(match, CodeBlock)
             self.assertTrue(match.filepath.startswith("/Users/Test/RISE"), f"Match {i} has unexpected filepath: {match.filepath}")
             self.assertTrue(len(match.lines) >= 2)
             self.assertTrue(any(line.is_match for line in match.lines))

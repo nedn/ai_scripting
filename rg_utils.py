@@ -6,43 +6,9 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from rich.console import Console
 from llm_utils import call_llm, GEMINI_2_5_PRO
+from code_block import CodeMatchedResult, CodeBlock, CodeLine
 
 console = Console()
-
-@dataclass
-class CodeLine:
-    """Represents a single line within a matched code block."""
-    line_number: int
-    content: str
-    is_match: bool # True if this line directly matched the rg pattern, False if it's context
-
-@dataclass
-class CodeBlockMatch:
-    """Represents a contiguous block of code containing one or more matches."""
-    filepath: str
-    start_line: int # First line number in the block (including context)
-    end_line: int   # Last line number in the block (including context)
-    lines: List[CodeLine] = field(default_factory=list) # List of lines in the block
-
-    @property
-    def code_block(self) -> str:
-        """Returns the full code block as a single string."""
-        return "\n".join(line.content for line in self.lines)
-
-    @property
-    def matched_lines_numbers(self) -> List[int]:
-        """Returns line numbers that directly matched the pattern."""
-        return [line.line_number for line in self.lines if line.is_match]
-
-
-@dataclass
-class CodeMatchedResult:
-    """Encapsulates the results of an rg search."""
-    total_files_matched: int = 0
-    total_lines_matched: int = 0 # Number of lines *directly* matching the pattern
-    matches: List[CodeBlockMatch] = field(default_factory=list) # List of matched code blocks
-    rg_stats_raw: str = "" # Raw statistics output from rg --stats
-    rg_command_used: str = "" # The full rg command executed
 
 # --- Helper Functions ---
 
@@ -301,7 +267,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
     """Helper to parse the match lines and update the CodeMatchedResult."""
 
     current_filepath: Optional[str] = None
-    current_match: Optional[CodeBlockMatch] = None
+    current_match: Optional[CodeBlock] = None
     # Regex to capture line number, separator (: or -), and the line content
     # It allows for potential leading/trailing whitespace around the content
     line_regex = re.compile(r"^(\d+)([:-])(.*)$")
@@ -351,7 +317,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
 
             # If this is the first line of a new block (no current_match)
             if current_match is None:
-                current_match = CodeBlockMatch(
+                current_match = CodeBlock(
                     filepath=current_filepath,
                     start_line=line_number,
                     end_line=line_number, # Initial end line

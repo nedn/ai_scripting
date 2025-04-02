@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field # Added dataclasses
 from google import genai
-from rg_utils import CodeBlockMatch, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
+from rg_utils import CodeBlock, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
 from llm_utils import call_llm, GEMINI_2_FLASH, GEMINI_2_5_PRO
 
 from dotenv import load_dotenv
@@ -24,7 +24,7 @@ console = Console()
 
 # (generate_replacement_prompt needs changes later to accept a CodeMatch object)
 # def generate_replacement_prompt(user_prompt: str, filename: str, matched_lines: List[Tuple[int, str]]) -> str:
-def generate_replacement_prompt(user_prompt: str, code_match: CodeBlockMatch) -> str:
+def generate_replacement_prompt(user_prompt: str, code_match: CodeBlock) -> str:
     """Creates the prompt for the LLM to generate replacement code for a CodeMatch block."""
     # Format the input block for the LLM, indicating matched lines clearly
     lines_str_parts = []
@@ -303,8 +303,6 @@ def main():
 
     console.print(f"\n[bold]--- Step 2: Generate Replacements (LLM) ---[/bold]")
     console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
-    console.print(f"Using model: [magenta]{selected_model}[/magenta]")
-
 
     # This dictionary will store the *final* proposed changes for each file.
     # Key: filepath, Value: Dict[lineno, new_content]
