@@ -20,191 +20,8 @@ from rich.table import Table
 # Rich console for better output
 console = Console()
 
-# (generate_replacement_prompt needs changes later to accept a CodeMatch object)
-# def generate_replacement_prompt(user_prompt: str, filename: str, matched_lines: List[Tuple[int, str]]) -> str:
-def generate_replacement_prompt(user_prompt: str, code_match: CodeBlock) -> str:
-    """Creates the prompt for the LLM to generate replacement code for a CodeMatch block."""
-    # Format the input block for the LLM, indicating matched lines clearly
-    lines_str_parts = []
-    for line in code_match.lines:
-        prefix = f"{line.line_number}:" # Standard prefix
-        # Optional: Add a marker for lines that originally matched the rg pattern
-        # marker = "*" if line.is_match else " "
-        # lines_str_parts.append(f"{prefix}{marker} {line.content}")
-        lines_str_parts.append(f"{prefix}{line.content}") # Keep it simple for now
-
-    lines_str = "\n".join(lines_str_parts)
-
-    prompt = f"""
-You are an expert programmer helping with code refactoring.
-The user's overall goal is: "{user_prompt}"
-
-You need to refactor a specific block of code from the file '{code_match.filepath}'.
-The block contains lines that matched a search pattern related to the user's goal, plus some surrounding context lines.
-Focus *only* on modifying the lines within this block according to the overall goal. Preserve indentation.
-
-Code block to refactor (format: <line_number>:<original_content>):
-```
-{lines_str}
-```
-
-Your task:
-1. Analyze the entire code block provided above.
-2. Apply the refactoring logic described in the user's goal ("{user_prompt}") to the relevant lines *within this block*.
-3. Output *only* the modified versions of ALL lines originally provided in the block.
-4. Preserve the original line numbers. The output format must be exactly:
-   <line_number>:<modified_content>
-   <line_number>:<modified_content>
-   ...
-   (Include ALL line numbers from the input block, from {code_match.start_line} to {code_match.end_line})
-5. Each line number from the input block must have a corresponding output line with the same line number and its potentially modified content.
-6. If a line does not need changing based on the refactoring goal, output it exactly as it was (including its original content and indentation), prefixed by its line number.
-7. Do NOT include any explanations, introductions, summaries, or markdown formatting like ```. Output only the `<line_number>:<modified_content>` lines.
-8. Pay close attention to maintaining correct indentation for the modified lines, matching the original code style.
-
-Example Input Block:
-```
-9: def old_function(a, b):
-10:   # Some calculation
-11:   result = a + b
-12:   return result
-13:
-14: # Call the function
-15: x = old_function(1, 2)
-```
-Example User Goal: "Rename old_function to new_function and change the calculation to multiplication"
-Example Output:
-```
-9: def new_function(a, b):
-10:   # Some calculation
-11:   result = a * b
-12:   return result
-13:
-14: # Call the function
-15: x = new_function(1, 2)
-```
-
-Now, refactor the code block provided above based on the user's goal. Output all lines from {code_match.start_line} to {code_match.end_line}.
-"""
-    return prompt
-
-
-def parse_llm_replacement_output(llm_output: str, original_block_lines: Dict[int, Line]) -> Dict[int, str]:
-    """
-    Parses the LLM's replacement output for a block (line_number:new_content).
-
-    Args:
-        llm_output: The raw string output from the LLM.
-        original_block_lines: A dictionary mapping line number to the original Line object
-                                for the block that was sent to the LLM.
-
-    Returns:
-        A dictionary mapping line number to its new content string. Includes unchanged lines.
-    """
-    replacements = {}
-    llm_lines_raw = llm_output.strip().split('\n')
-    parsed_line_numbers = set()
-    original_line_numbers = set(original_block_lines.keys())
-
-    for line in llm_lines_raw:
-        if not line.strip(): # Skip empty lines from LLM output
-            continue
-        parts = line.split(':', 1)
-        if len(parts) == 2:
-            lineno_str, new_content = parts
-            try:
-                lineno = int(lineno_str.strip())
-                if lineno in original_line_numbers:
-                    # LLM provided a line that was in the original block
-                    replacements[lineno] = new_content # Keep original indentation / whitespace from LLM
-                    parsed_line_numbers.add(lineno)
-                else:
-                    # This case should be less common with the new prompt asking for all lines
-                    console.print(f"[yellow]Warning: LLM returned replacement for line {lineno}, which was not in the original block sent ({min(original_line_numbers)}-{max(original_line_numbers)}). Ignoring.[/yellow]")
-            except ValueError:
-                console.print(f"[yellow]Warning: Could not parse line number from LLM output line: '{line}'. Ignoring.[/yellow]")
-        else:
-            # Handle cases where LLM might output explanations or lines without the expected format
-             if len(original_line_numbers) > 0 and \
-                line.strip().startswith(str(min(original_line_numbers))) and \
-                line.strip().endswith(str(max(original_line_numbers))):
-                 # Heuristic: ignore summary lines like "Processing lines 10-20"
-                 pass
-             else:
-                 console.print(f"[yellow]Warning: Could not parse LLM output line format (expected 'number:content'): '{line}'. Ignoring.[/yellow]")
-
-    # Check if LLM missed any lines it was supposed to process
-    missing_lines = original_line_numbers - parsed_line_numbers
-    if missing_lines:
-        console.print(f"[yellow]Warning: LLM did not provide output for original lines: {sorted(list(missing_lines))}. These lines will remain unchanged.[/yellow]")
-        # Add them back as unchanged using the original content
-        for lineno in missing_lines:
-            replacements[lineno] = original_block_lines[lineno].content
-
-    # Ensure the dictionary covers all lines from the original block
-    final_replacements = {}
-    for lineno in sorted(original_line_numbers):
-        if lineno in replacements:
-             final_replacements[lineno] = replacements[lineno]
-        else:
-             # This shouldn't happen based on the missing_lines check above, but as a safeguard
-             console.print(f"[red]Error: Line {lineno} was missing from LLM output and fallback logic. Keeping original.[/red]")
-             final_replacements[lineno] = original_block_lines[lineno].content
-
-
-    return final_replacements
-
-
-def apply_changes(filepath: str, replacements: Dict[int, str]) -> bool:
-    """Reads a file, applies replacements line by line, and writes back."""
-    try:
-        path = Path(filepath)
-        # Read lines carefully, preserving original line endings if possible
-        content = path.read_text(encoding='utf-8')
-        lines = content.splitlines() # Keeps line content without endings
-        # Detect line ending (simple check for first occurrence)
-        line_ending = os.linesep # Default
-        if "\r\n" in content:
-             line_ending = "\r\n"
-        elif "\n" in content:
-             line_ending = "\n"
-        elif "\r" in content:
-             line_ending = "\r"
-
-
-        new_lines = []
-        modified = False
-        for i, original_line in enumerate(lines):
-            lineno = i + 1
-            if lineno in replacements:
-                new_line_content = replacements[lineno]
-                if new_line_content != original_line:
-                    modified = True
-                new_lines.append(new_line_content)
-            else:
-                new_lines.append(original_line) # Keep lines outside the replaced blocks
-
-        if not modified:
-            console.print(f"[dim]No actual changes needed for {filepath} (LLM output matched original). Skipping write.[/dim]")
-            return False # Indicate no changes were written
-
-        # Write back using detected line endings
-        # Ensure trailing newline if original file had one (splitlines() removes it)
-        trailing_newline = line_ending if content.endswith(('\n', '\r')) else ""
-        path.write_text(line_ending.join(new_lines) + trailing_newline, encoding='utf-8')
-        console.print(f"[green]Changes applied to {filepath}[/green]")
-        return True # Indicate changes were written
-
-    except FileNotFoundError:
-        console.print(f"[bold red]Error: File not found during replacement: {filepath}[/bold red]")
-        return False
-    except IOError as e:
-        console.print(f"[bold red]Error reading/writing file {filepath}: {e}[/bold red]")
-        return False
-    except Exception as e:
-        console.print_exception()
-        console.print(f"[bold red]An unexpected error occurred while applying changes to {filepath}: {e}[/bold red]")
-        return False
+SEARCH_ARGS_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
+REPLACEMENT_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
 
 def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_confirm: bool = False) -> bool:
     """
@@ -222,7 +39,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=GeminiModel.GEMINI_2_0_FLASH_THINKING_EXP)
+    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=REPLACEMENT_MODEL)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
@@ -381,7 +198,7 @@ def main():
         console.print(f"[bold red]Error: Folder not found: {folder_path}[/bold red]")
         sys.exit(1)
 
-    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {GeminiModel.GEMINI_2_5_PRO_EXP}\nReplacement model: {GeminiModel.GEMINI_2_0_FLASH}", title="Configuration", expand=False))
+    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {SEARCH_ARGS_MODEL}\nReplacement model: {REPLACEMENT_MODEL}", title="Configuration", expand=False))
 
     # --- Step 1: Plan & Search ---
     console.print("\n[bold]--- Step 1: Search Plan ---[/bold]")
@@ -389,7 +206,7 @@ def main():
     current_rg_args_str = args.rg_args
     if not current_rg_args_str:
         # Use the more capable model for rg command generation
-        current_rg_args_str = generate_rg_command(user_prompt, folder_path)
+        current_rg_args_str = generate_rg_command(user_prompt, folder_path, model=SEARCH_ARGS_MODEL)
         if not current_rg_args_str: # Handle LLM failure to suggest
              current_rg_args_str = Prompt.ask("[yellow]LLM suggestion failed. Please enter rg arguments manually (e.g., -e 'pattern' -t py -C 3 -n --with-filename --stats):[/yellow]")
              if not current_rg_args_str: # User didn't provide args either

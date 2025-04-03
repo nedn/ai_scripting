@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
 from typing import List
+from rich.console import Console
+
 
 @dataclass
 class Line:
     """Represents a single line within a code block."""
-    line_number: int
+    line_number: int # Relative to the file which contains this line
     content: str
 
 
@@ -69,6 +71,8 @@ class EditCodeBlock(CodeBlock):
     def __init__(self, lines: List[Line], original_block: CodeBlock):
         super().__init__(filepath=original_block.filepath, start_line=original_block.start_line, lines=lines)
         self.original_block = original_block
+        for i, line in enumerate(lines):
+            line.line_number = self.original_block.start_line + i
 
     @property
     def original_end_line(self) -> int:
@@ -83,7 +87,7 @@ class EditCodeBlock(CodeBlock):
 
 def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
     """Creates an EditCodeBlock from a code string."""
-    lines = [Line(line_number=i+1, content=line + "\n") for i, line in enumerate(editted_code_string.split("\n"))]
+    lines = [Line(line_number=i+1, content=line) for i, line in enumerate(editted_code_string.split("\n"))]
     return EditCodeBlock(lines=lines, original_block=original_block)
 
 
@@ -95,6 +99,9 @@ class CodeMatchedResult:
     matches: List[CodeBlock] = field(default_factory=list) # List of matched code blocks
     rg_stats_raw: str = "" # Raw statistics output from rg --stats
     rg_command_used: str = "" # The full rg command executed
+
+
+DEBUG_CODE_BLOCKS_EDITING = False
 
 
 def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]):
@@ -121,15 +128,26 @@ def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]
     
     # Track the line offset caused by previous edits
     line_offset = 0
-    
+
+    if DEBUG_CODE_BLOCKS_EDITING:
+        code_block_debugging_file =  open("code_blocks.txt", "a")
+        debug_console = Console(file=code_block_debugging_file)
+    else:
+        debug_console = None
+        
+    if debug_console:
+        debug_console.print(f" ======== FILE PATH: {filepath} ======== ")
     # Apply each edit block
     for block in edit_blocks:
-        # Calculate the actual line numbers in the current file state
-        current_start = block.start_line + line_offset
-        current_end = current_start + block.len_lines_of_original_block - 1
+        if debug_console:
+            debug_console.print(f" === ORIGINAL BLOCK:\n {block.original_block.code_block_with_line_numbers}\n=== ")
+            debug_console.print(f" === EDITED BLOCK:\n {block.code_block_with_line_numbers}\n=== ")      
+        # Calculate the actual line numbers in the current file state   
+        lines_index_start_original_block = block.start_line + line_offset - 1
+        lines_index_end_original_block = lines_index_start_original_block + block.len_lines_of_original_block 
         
         # Replace the lines in the file with the edited content if the lines
-        lines = lines[:current_start] + [l.content for l in block.lines] + lines[current_end:]
+        lines = lines[:lines_index_start_original_block] + [l.content + "\n" for l in block.lines] + lines[lines_index_end_original_block:]
         
         # Update the line offset for subsequent blocks
         line_offset += block.len_lines - block.len_lines_of_original_block
@@ -137,3 +155,5 @@ def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]
     # Write the modified content back to the file
     with open(filepath, 'w') as file:
         file.writelines(lines)
+
+    code_block_debugging_file.close()

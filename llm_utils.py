@@ -101,9 +101,21 @@ def count_tokens(text: str) -> int:
     encoding = tiktoken.get_encoding("cl100k_base")
     return len(encoding.encode(text))
 
+DEBUG_LLM_CALLS = False
+
 def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
     """Calls the configured Google AI model."""
     console.print(f"[cyan]Calling LLM model {model.code_name} for: {purpose}...[/cyan]")
+
+    if DEBUG_LLM_CALLS:
+        llm_log_file = open("llm_log.txt", "a")
+        llm_log_console = Console(file=llm_log_file)
+    else:
+        llm_log_console = None
+        
+    if llm_log_console:
+        llm_log_console.print("==== PROMT ====")
+        llm_log_console.print(prompt)
     
     # Count input tokens
     input_tokens = count_tokens(prompt)
@@ -130,6 +142,10 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
         output_tokens = count_tokens(response_text)
         console.print(f"[green]Output tokens: {output_tokens}[/green]")
         
+        if llm_log_console:
+            llm_log_console.print("==== RESPONSE ====")
+            llm_log_console.print(response_text)
+
         return response_text
     except Exception as e:
         console.print(f"[bold red]LLM API call failed: {e}[/bold red]")
