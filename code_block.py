@@ -26,7 +26,8 @@ class CodeBlock:
     filepath: str
     start_line: int # First line number in the block (including context)
     lines: List[Line] = field(default_factory=list) # List of lines in the block
-    _original_file_content: str = field(default=None, init=False)
+    _original_file_content: str = None
+    _matched_lines_numbers: List[int] = None
 
     @property
     def end_line(self) -> int:
@@ -46,7 +47,14 @@ class CodeBlock:
     @property
     def matched_lines_numbers(self) -> List[int]:
         """Returns line numbers that directly matched the pattern."""
-        return [line.line_number for line in self.lines if line.is_match]
+        if self._matched_lines_numbers is None:
+            self._matched_lines_numbers = [l.line_number for l in self.lines if l.is_match]
+        return self._matched_lines_numbers
+    
+    @property
+    def num_matched_lines(self) -> int:
+        """Returns the number of lines that matched the pattern."""
+        return len(self.matched_lines_numbers)
     
     @property
     def original_file_content(self) -> str:
@@ -94,11 +102,28 @@ def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: 
 @dataclass
 class CodeMatchedResult:
     """Encapsulates the results of an rg search."""
-    total_files_matched: int = 0
-    total_lines_matched: int = 0 # Number of lines *directly* matching the pattern
-    matches: List[CodeBlock] = field(default_factory=list) # List of matched code blocks
+    _total_lines_matched: int = None # Number of lines *directly* matching the pattern
+    _total_files_matches: int = None # Number of files that matched the pattern
+    matched_blocks: List[CodeBlock] = field(default_factory=list) # List of matched code blocks
     rg_stats_raw: str = "" # Raw statistics output from rg --stats
     rg_command_used: str = "" # The full rg command executed
+
+    @property
+    def total_files_matched(self) -> int:
+        """Returns the number of files that matched the pattern."""
+        if self._total_files_matches is None:
+            files_matches = set()
+            for b in self.matched_blocks:
+                files_matches.add(b.filepath)
+            self._total_files_matches = len(files_matches)  
+        return self._total_files_matches
+
+    @property
+    def total_lines_matched(self) -> int:
+        """Returns the number of lines that matched the pattern."""
+        if self._total_lines_matched is None:
+            self._total_lines_matched = sum(b.num_matched_lines for b in self.matched_blocks)
+        return self._total_lines_matched
 
 
 DEBUG_CODE_BLOCKS_EDITING = False

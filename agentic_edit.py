@@ -36,10 +36,10 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
         bool: True if changes were applied successfully, False otherwise
     """
     console.print(f"\n[bold]--- Step 2: Generate Replacements (LLM) ---[/bold]")
-    console.print(f"Will process [bold cyan]{len(search_result.matches)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
+    console.print(f"Will process [bold cyan]{len(search_result.matched_blocks)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matches, user_prompt, model=REPLACEMENT_MODEL)
+    edited_blocks = edit_code_blocks(search_result.matched_blocks, user_prompt, model=REPLACEMENT_MODEL)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
@@ -221,7 +221,7 @@ def main():
         console.print(Panel(f"rg {current_rg_args_str} {shlex.quote(folder_path)}", title="Current Search Command", expand=False))
         search_result = gather_search_results(current_rg_args_str, folder_path)
 
-        if not search_result.matches:
+        if not search_result.matched_blocks:
              # No matches found, stats might still be present in search_result
              console.print("[yellow]No code blocks matched the current rg arguments.[/yellow]")
              # If stats indicate files *were* searched, it confirms no matches.
@@ -235,14 +235,14 @@ def main():
             break
 
         action = Prompt.ask(
-             f"\nFound {len(search_result.matches)} code blocks in {search_result.total_files_matched} files. Choose action (proceed, modify `rg` args, or abort):",
+             f"\nFound {len(search_result.matched_blocks)} code blocks in {search_result.total_files_matched} files. Choose action (proceed, modify `rg` args, or abort):",
              choices=["p", "m", "a"],
              default="p",
              show_choices=True,
          ).lower()
 
         if action == 'p':
-            if not search_result.matches:
+            if not search_result.matched_blocks:
                 console.print("[yellow]Cannot proceed without any matched code blocks. Modify args or abort.[/yellow]")
                 continue
             break
@@ -253,7 +253,7 @@ def main():
             console.print("[bold yellow]Aborted by user.[/bold yellow]")
             sys.exit(0)
 
-    if not search_result.matches:
+    if not search_result.matched_blocks:
         console.print("[bold yellow]No code blocks matched the final search criteria. Exiting.[/bold yellow]")
         sys.exit(0)
 

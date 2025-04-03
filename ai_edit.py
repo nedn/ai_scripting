@@ -57,7 +57,7 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edit
 # Limits the number of blocks that can be processed in a single LLM call
 # to avoid exceeding the model's output token limit and ensure the quality 
 # of the output
-MAX_BLOCKS_PER_CALL = 7
+MAX_BLOCKS_PER_CALL = 20
 
 def edit_code_blocks(
     code_blocks: List[CodeBlock],

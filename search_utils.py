@@ -236,30 +236,22 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     _parse_match_lines(output_lines, result)
 
     # --- Parse Stats Section ---
-    _parse_rg_stats(result.rg_stats_raw, result)
+    rg_files_matched, rg_lines_matched = _parse_rg_stats(result.rg_stats_raw)
+
+    assert result.total_files_matched == rg_files_matched, f"Total files matched: result {result.total_files_matched} != rg {rg_files_matched}"
+    assert result.total_lines_matched == rg_lines_matched, f"Total lines matched: result {result.total_lines_matched} != rg {rg_lines_matched}"
 
     # --- Display Summary ---
-    console.print(f"\nFound [bold cyan]{result.total_files_matched}[/bold cyan] file(s) with [bold cyan]{result.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(result.matches)}[/bold cyan] code blocks.")
-    if result.matches:
+    console.print(f"\nFound [bold cyan]{result.total_files_matched}[/bold cyan] file(s) with [bold cyan]{result.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(result.matched_blocks)}[/bold cyan] code blocks.")
+    if result.matched_blocks:
         # Display info about the first block as a sample
-        first_match = result.matches[0]
+        first_match = result.matched_blocks[0]
         console.print(f"[dim]First block found in: {first_match.filepath} (Lines {first_match.start_line}-{first_match.end_line})[/dim]")
         console.print(f"[dim]Code block:[/dim]")
         console.print(first_match.code_block_with_line_numbers)
 
     return result
 
-
-_match_line_regex = re.compile(r"^\s*(\d+)([:-])\s*(.*)$")
-
-def _is_match_line(line: str) -> bool:
-    return _match_line_regex.match(line) is not None
-
-def _is_separator_line(line: str) -> bool:
-    return line.strip() == "--"
-
-def _is_file_path_line(line: str) -> bool:
-    return not _is_match_line(line) and not _is_separator_line(line) and line.strip()
 
 def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
     """Helper to parse the match lines and update the CodeMatchedResult."""
@@ -269,15 +261,12 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
     # Regex to capture line number, separator (: or -), and the line content
     # It allows for potential leading/trailing whitespace around the content
     line_regex = re.compile(r"^(\d+)([:-])(.*)$")
-    # Keep track of files seen to count unique files
-    files_seen = set()
-
 
     def finalize_current_match():
         """Helper function to add the current match to results if it exists."""
         nonlocal current_match
         if current_match:
-            result.matches.append(current_match)
+            result.matched_blocks.append(current_match)
             current_match = None
 
     for line in match_lines:
@@ -310,9 +299,6 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
                 is_match=is_match
             )
 
-            if is_match:
-                result.total_lines_matched += 1
-
             # If this is the first line of a new block (no current_match)
             if current_match is None:
                 current_match = CodeBlock(
@@ -335,9 +321,6 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
 
             # Assume this line is a file path
             current_filepath = line # Store the full line as the path
-            if current_filepath not in files_seen:
-                 result.total_files_matched += 1
-                 files_seen.add(current_filepath)
             # Reset current_match as we are starting a new file context
             current_match = None
 
@@ -345,13 +328,13 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
     finalize_current_match()
 
 
-def _parse_rg_stats(stats_str: str, result: CodeMatchedResult):
-    """Helper to parse the --stats output and update the CodeMatchedResult."""
+def _parse_rg_stats(stats_str: str):
+    """Helper to parse the --stats output and return the number of files and lines matched."""
     if not stats_str:
         return
 
     # Regex using non-capturing groups for flexibility
-    stats_matches_regex = re.compile(r"(\d+)\s+(?:match|matches)")
+    stats_matches_regex = re.compile(r"(\d+)\s+(?:match|matches)")  # Matches "1 match" or "1 matches"
     stats_lines_regex = re.compile(r"(\d+)\s+matched lines")
     stats_files_regex = re.compile(r"(\d+)\s+files contained matches")
 
@@ -383,10 +366,4 @@ def _parse_rg_stats(stats_str: str, result: CodeMatchedResult):
             except ValueError:
                 pass
 
-    # Handle the case where we have no matches but stats are present
-    if "0 matches" in stats_str or "0 matched lines" in stats_str:
-        lines_matched = 0
-        files_matched = 0
-
-    result.total_lines_matched = lines_matched
-    result.total_files_matched = files_matched
+    return files_matched, lines_matched
