@@ -68,16 +68,6 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edit
             lines=edited_lines
         )
         edited_blocks.append(edited_block)
-
-    console.print(f" ===== ORIGINAL BLOCKS ===== ")
-    for i, block in enumerate(current_batch):
-        console.print(f" ===== BLOCK {i} ===== ")
-        console.print(block[0].code_block_with_line_numbers)
-
-    console.print(f" ===== EDITED BLOCKS ===== ")
-    for i, block in enumerate(edited_blocks):
-        console.print(f" ===== BLOCK {i} ===== ")
-        console.print(block.code_block_with_line_numbers)
     
     return edited_blocks
 
