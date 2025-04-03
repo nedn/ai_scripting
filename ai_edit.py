@@ -1,5 +1,5 @@
 from typing import List
-from code_block import CodeBlock, EditCodeBlock
+from code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
 from llm_utils import call_llm, GeminiModel, count_tokens
 from rich.console import Console
 
@@ -37,36 +37,19 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edit
     for line in llm_output.strip().split('\n'):
         if "<code_block>" in line:
             in_block = True
-            current_block = line.split("<code_block>")[1] if "<code_block>" in line else ""
+            current_block = line.split("<code_block>")[1]
         elif "</code_block>" in line:
             in_block = False
-            current_block += line.split("</code_block>")[0] if "</code_block>" in line else ""
-            block_outputs.append(current_block.strip())
+            current_block += line.split("</code_block>")[0]
+            block_outputs.append(current_block)
             current_block = ""
         elif in_block:
             current_block += line + "\n"
     
     # Process each block's output
     edited_blocks = []
-    for (original_block, _), block_output in zip(current_batch, block_outputs):
-        edited_lines_content = [line for line in block_output.split('\n') if line.strip()]
-        
-        # Create a new CodeBlock with the edited content
-        edited_lines = []
-        for original_line, new_content in zip(original_block.lines, edited_lines_content):
-            edited_lines.append(original_line.__class__(
-                line_number=original_line.line_number,
-                content=new_content,
-                is_match=original_line.is_match
-            ))
-        
-        edited_block = EditCodeBlock(
-            filepath=original_block.filepath,
-            start_line=original_block.start_line,
-            original_end_line=original_block.end_line,
-            end_line=original_block.start_line + len(edited_lines) - 1,
-            lines=edited_lines
-        )
+    for (original_block, _), edit_block_str in zip(current_batch, block_outputs):        
+        edited_block = CreateEditCodeBlockFromCodeString(edit_block_str, original_block)
         edited_blocks.append(edited_block)
     
     return edited_blocks

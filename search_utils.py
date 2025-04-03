@@ -320,7 +320,6 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
                 current_match = CodeBlock(
                     filepath=current_filepath,
                     start_line=line_number,
-                    end_line=line_number, # Initial end line
                     lines=[code_line]
                 )
             else:
@@ -330,8 +329,6 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
                      console.print(f"[yellow]Warning: File path mismatch within block. Expected {current_match.filepath}, got {current_filepath}[/yellow]")
                      raise RuntimeError("File path mismatch within block.")
                 current_match.lines.append(code_line)
-                # Update end_line (no need to check min for start_line as rg output is sorted)
-                current_match.end_line = line_number
 
         # 3. Check for file path (if it's not a separator or code line)
         else:

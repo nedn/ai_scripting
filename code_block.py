@@ -23,10 +23,14 @@ class CodeBlock:
     """
     filepath: str
     start_line: int # First line number in the block (including context)
-    end_line: int   # Last line number in the block (including context)
     lines: List[Line] = field(default_factory=list) # List of lines in the block
     _original_file_content: str = field(default=None, init=False)
 
+    @property
+    def end_line(self) -> int:
+        """Returns the last line number in the block (including context)."""
+        return self.start_line + len(self.lines) - 1
+    
     @property
     def code_block_with_line_numbers(self) -> str:
         """Returns the full code block as a single string with line numbers."""
@@ -62,14 +66,25 @@ class EditCodeBlock(CodeBlock):
     Its start line in the file is the same as the first line of the original code block.
     """
 
-    def __init__(self, filepath: str, start_line: int, end_line: int, original_end_line: int, lines: List[Line]):
-        super().__init__(filepath=filepath, start_line=start_line, end_line=end_line, lines=lines)
-        self.original_end_line = original_end_line
+    def __init__(self, lines: List[Line], original_block: CodeBlock):
+        super().__init__(filepath=original_block.filepath, start_line=original_block.start_line, lines=lines)
+        self.original_block = original_block
+
+    @property
+    def original_end_line(self) -> int:
+        """Returns the last line number in the original code block."""
+        return self.original_block.end_line
 
     @property
     def len_lines_of_original_block(self) -> int:
         """Returns the number of lines in the original code block."""
-        return self.original_end_line - self.start_line + 1
+        return self.original_block.len_lines
+
+
+def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
+    """Creates an EditCodeBlock from a code string."""
+    lines = [Line(line_number=i+1, content=line + "\n") for i, line in enumerate(editted_code_string.split("\n"))]
+    return EditCodeBlock(lines=lines, original_block=original_block)
 
 
 @dataclass
@@ -114,7 +129,7 @@ def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]
         current_end = current_start + block.len_lines_of_original_block - 1
         
         # Replace the lines in the file with the edited content if the lines
-        lines = lines[:current_start] + [l.content + "\n" for l in block.lines] + lines[current_end:]
+        lines = lines[:current_start] + [l.content for l in block.lines] + lines[current_end:]
         
         # Update the line offset for subsequent blocks
         line_offset += block.len_lines - block.len_lines_of_original_block
