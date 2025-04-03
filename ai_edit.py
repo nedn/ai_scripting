@@ -1,5 +1,5 @@
 from typing import List
-from code_block import CodeBlock
+from code_block import CodeBlock, EditCodeBlock
 from llm_utils import call_llm, GeminiModel, count_tokens
 from rich.console import Console
 
@@ -7,16 +7,12 @@ console = Console()
 
 def get_block_prompt(block: CodeBlock) -> str:
     return f"""
-File: '{block.filepath}'
-Code block:
-```
+<code_block>
 {block.code_block_without_line_numbers}
-```
+</code_block>
 """
 
-CODE_BLOCK_DELIMITER = "[CODE_BLOCK_DELIMITER]"
-
-def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[CodeBlock]:
+def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[EditCodeBlock]:
     """
     Process LLM output to generate edited code blocks.
     
@@ -25,20 +21,35 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Code
         current_batch: List of tuples containing (original_block, block_prompt)
         
     Returns:
-        List of edited CodeBlock objects
+        List of edited EditCodeBlock objects
     """
+
     if llm_output.startswith("Error:"):
         console.print(f"[bold red]Error processing batch: {llm_output}[/bold red]")
         # Keep the original blocks if there's an error
         return [block for block, _ in current_batch]
     
-    # Parse the LLM output into separate block outputs
-    block_outputs = llm_output.strip().split(CODE_BLOCK_DELIMITER)
+    # Parse the LLM output into separate block outputs using XML tags
+    block_outputs = []
+    current_block = ""
+    in_block = False
+    
+    for line in llm_output.strip().split('\n'):
+        if "<code_block>" in line:
+            in_block = True
+            current_block = line.split("<code_block>")[1] if "<code_block>" in line else ""
+        elif "</code_block>" in line:
+            in_block = False
+            current_block += line.split("</code_block>")[0] if "</code_block>" in line else ""
+            block_outputs.append(current_block.strip())
+            current_block = ""
+        elif in_block:
+            current_block += line + "\n"
     
     # Process each block's output
     edited_blocks = []
     for (original_block, _), block_output in zip(current_batch, block_outputs):
-        edited_lines_content = [line for line in block_output.strip().split('\n') if line.strip()]
+        edited_lines_content = [line for line in block_output.split('\n') if line.strip()]
         
         # Create a new CodeBlock with the edited content
         edited_lines = []
@@ -49,13 +60,24 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Code
                 is_match=original_line.is_match
             ))
         
-        edited_block = CodeBlock(
+        edited_block = EditCodeBlock(
             filepath=original_block.filepath,
             start_line=original_block.start_line,
-            end_line=original_block.end_line,
+            original_end_line=original_block.end_line,
+            end_line=original_block.start_line + len(edited_lines) - 1,
             lines=edited_lines
         )
         edited_blocks.append(edited_block)
+
+    console.print(f" ===== ORIGINAL BLOCKS ===== ")
+    for i, block in enumerate(current_batch):
+        console.print(f" ===== BLOCK {i} ===== ")
+        console.print(block[0].code_block_with_line_numbers)
+
+    console.print(f" ===== EDITED BLOCKS ===== ")
+    for i, block in enumerate(edited_blocks):
+        console.print(f" ===== BLOCK {i} ===== ")
+        console.print(block.code_block_with_line_numbers)
     
     return edited_blocks
 
@@ -88,7 +110,6 @@ def edit_code_blocks(
     # Base prompt template that will be reused for each batch
     base_prompt = f"""
 You are an expert programmer helping with code refactoring.
-The user's overall goal is: "{edit_prompt}"
 
 You need to refactor multiple blocks of code according to the overall goal.
 For each block, focus *only* on modifying the lines within that block. Preserve indentation.
@@ -102,8 +123,40 @@ Your task:
 6. Do NOT include any explanations, introductions, summaries, or markdown formatting like ```.
 7. Do NOT include line numbers in your output - just the code lines themselves.
 8. Pay close attention to maintaining correct indentation for the modified lines, matching the original code style.
-9. Separate each block's output with a line containing only "{CODE_BLOCK_DELIMITER}".
+9. Enclose each block's output in XML tags: <code_block> and </code_block>
 
+[Example]
+The user's overall goal is: "Refactor the code to use snprintf instead of sprintf"
+
+Code blocks to refactor:
+
+<code_block>
+int main() {{
+    char buffer[100];
+    sprintf(buffer, "Hello, world!");
+    return 0;
+}}
+</code_block>
+<code_block>
+    // this is a comment
+    sprintf( lightname, "light%d", i );
+</code_block>
+
+Output:
+<code_block>
+int main() {{
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "Hello, world!");
+    return 0;
+}}
+</code_block>
+<code_block>
+    // this is a comment
+    snprintf( lightname, sizeof(lightname), "light%d", i );
+</code_block>
+[Example End]
+
+The user's overall goal is: "{edit_prompt}"
 Code blocks to refactor:
 """
     
@@ -123,7 +176,6 @@ Code blocks to refactor:
             # Process the current batch
             batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
             llm_output = call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks", model=model)
-            
             edited_blocks.extend(process_llm_output(llm_output, current_batch))
             
             # Reset batch
@@ -138,28 +190,6 @@ Code blocks to refactor:
     if current_batch:
         batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
         llm_output = call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks", model=model)
-        
         edited_blocks.extend(process_llm_output(llm_output, current_batch))
     
     return edited_blocks
-
-
-def edit_file_with_edited_block(block: CodeBlock):
-    """
-    Takes a CodeBlock and edits the file it represents.
-    Uses line numbers to ensure the correct block is replaced even if similar code appears multiple times.
-    """
-    with open(block.filepath, 'r') as file:
-        lines = file.readlines()
-    
-    # Replace the lines in the specified range with the edited block
-    # Note: line numbers are 1-indexed, but list indices are 0-indexed
-    start_idx = block.start_line - 1
-    end_idx = block.end_line
-    
-    # Replace the lines in the range with the edited block
-    lines[start_idx:end_idx] = [line.content + '\n' for line in block.lines]
-    
-    # Write the modified content back to the file
-    with open(block.filepath, 'w') as file:
-        file.writelines(lines)

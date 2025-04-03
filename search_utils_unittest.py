@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from rg_utils import gather_search_results, CodeMatchedResult, CodeBlock, CodeLine
+from search_utils import gather_search_results, CodeMatchedResult, CodeBlock, Line
 
 
 _complex_rg_output = """\
@@ -214,7 +214,7 @@ class TestGatherSearchResults(unittest.TestCase):
         # Complex rg output for testing various formats
         self.complex_output = _complex_rg_output
 
-    @patch('rg_utils.run_rg')
+    @patch('search_utils.run_rg')
     def test_successful_search_with_matches(self, mock_run_rg):
         # Setup mock
         mock_result = MagicMock()
@@ -246,7 +246,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(second_match.end_line, 8)
         self.assertEqual(len(second_match.lines), 4)
 
-    @patch('rg_utils.run_rg')
+    @patch('search_utils.run_rg')
     def test_search_with_no_matches(self, mock_run_rg):
         # Setup mock
         mock_result = MagicMock()
@@ -264,7 +264,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(result.total_lines_matched, 0)
         self.assertEqual(len(result.matches), 0)
 
-    @patch('rg_utils.run_rg')
+    @patch('search_utils.run_rg')
     def test_search_with_rg_error(self, mock_run_rg):
         # Setup mock
         mock_result = MagicMock()
@@ -282,7 +282,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(result.total_lines_matched, 0)
         self.assertEqual(len(result.matches), 0)
 
-    @patch('rg_utils.run_rg')
+    @patch('search_utils.run_rg')
     def test_search_with_complex_output(self, mock_run_rg):
         # Setup mock with complex output including various separators and line formats
         mock_result = MagicMock()
@@ -306,7 +306,7 @@ class TestGatherSearchResults(unittest.TestCase):
             self.assertTrue(len(match.lines) >= 2)
             self.assertTrue(any(line.is_match for line in match.lines))
 
-    @patch('rg_utils.run_rg')
+    @patch('search_utils.run_rg')
     def test_search_with_missing_required_flags(self, mock_run_rg):
         # Test with missing required flags - should raise ValueError
         incomplete_args = "-e 'test'"

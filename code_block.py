@@ -2,16 +2,18 @@ from dataclasses import dataclass, field
 from typing import List
 
 @dataclass
-class CodeLine:
+class Line:
     """Represents a single line within a code block."""
     line_number: int
     content: str
 
 
 @dataclass
-class MatchedLine(CodeLine):
-    is_match: bool = field(default=False) # True if this line directly matched the rg pattern, False if it's context
-
+class MatchedLine(Line):
+    def __init__(self, line_number: int, content: str, is_match: bool):
+        super().__init__(line_number=line_number, content=content)
+        self.is_match = is_match
+        
 
 @dataclass
 class CodeBlock:
@@ -22,7 +24,7 @@ class CodeBlock:
     filepath: str
     start_line: int # First line number in the block (including context)
     end_line: int   # Last line number in the block (including context)
-    lines: List[CodeLine] = field(default_factory=list) # List of lines in the block
+    lines: List[Line] = field(default_factory=list) # List of lines in the block
     _original_file_content: str = field(default=None, init=False)
 
     @property
@@ -47,6 +49,27 @@ class CodeBlock:
             with open(self.filepath, 'r') as file:
                 self._original_file_content = file.read()
         return self._original_file_content
+    
+    @property
+    def len_lines(self) -> int:
+        """Returns the number of lines in the code block."""
+        return len(self.lines)
+
+class EditCodeBlock(CodeBlock):
+    """Represents a code block that represent a code that has been edited by an LLM.
+    
+    It has an original end line, which is the last line of the original code block.
+    Its start line in the file is the same as the first line of the original code block.
+    """
+
+    def __init__(self, filepath: str, start_line: int, end_line: int, original_end_line: int, lines: List[Line]):
+        super().__init__(filepath=filepath, start_line=start_line, end_line=end_line, lines=lines)
+        self.original_end_line = original_end_line
+
+    @property
+    def len_lines_of_original_block(self) -> int:
+        """Returns the number of lines in the original code block."""
+        return self.original_end_line - self.start_line + 1
 
 
 @dataclass
@@ -57,3 +80,45 @@ class CodeMatchedResult:
     matches: List[CodeBlock] = field(default_factory=list) # List of matched code blocks
     rg_stats_raw: str = "" # Raw statistics output from rg --stats
     rg_command_used: str = "" # The full rg command executed
+
+
+def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]):
+    """
+    Takes a list of edit CodeBlocks and edits the file they represent.
+    
+    Args:
+        filepath: The path to the file to edit
+        edit_blocks: List of CodeBlock objects containing the edits to apply
+        
+    Raises:
+        ValueError: If any block's filepath doesn't match the target filepath
+    """
+    for b in edit_blocks:
+        if (b.filepath != filepath): 
+            raise ValueError(f"Block {b.filepath} does not match filepath {filepath}")
+        
+    # Read the original file content
+    with open(filepath, 'r') as file:
+        lines = file.readlines()
+    
+    # Sort the blocks by start line
+    edit_blocks.sort(key=lambda x: x.start_line)
+    
+    # Track the line offset caused by previous edits
+    line_offset = 0
+    
+    # Apply each edit block
+    for block in edit_blocks:
+        # Calculate the actual line numbers in the current file state
+        current_start = block.start_line + line_offset
+        current_end = current_start + block.len_lines_of_original_block - 1
+        
+        # Replace the lines in the file with the edited content if the lines
+        lines = lines[:current_start] + [l.content + "\n" for l in block.lines] + lines[current_end:]
+        
+        # Update the line offset for subsequent blocks
+        line_offset += block.len_lines - block.len_lines_of_original_block
+    
+    # Write the modified content back to the file
+    with open(filepath, 'w') as file:
+        file.writelines(lines)

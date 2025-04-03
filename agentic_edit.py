@@ -6,14 +6,12 @@ import shlex
 import sys
 import re
 from pathlib import Path
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field
-from google import genai
-from rg_utils import CodeBlock, CodeLine, CodeMatchedResult, gather_search_results, generate_rg_command
-from llm_utils import call_llm, GeminiModel
-from ai_edit import edit_code_blocks, edit_file_with_edited_block
+from code_block import CodeBlock, Line, CodeMatchedResult, edit_file_with_edited_blocks
+from typing import Dict
+from search_utils import gather_search_results, generate_rg_command
+from llm_utils import GeminiModel
+from ai_edit import edit_code_blocks
 
-from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
@@ -91,13 +89,13 @@ Now, refactor the code block provided above based on the user's goal. Output all
     return prompt
 
 
-def parse_llm_replacement_output(llm_output: str, original_block_lines: Dict[int, CodeLine]) -> Dict[int, str]:
+def parse_llm_replacement_output(llm_output: str, original_block_lines: Dict[int, Line]) -> Dict[int, str]:
     """
     Parses the LLM's replacement output for a block (line_number:new_content).
 
     Args:
         llm_output: The raw string output from the LLM.
-        original_block_lines: A dictionary mapping line number to the original CodeLine object
+        original_block_lines: A dictionary mapping line number to the original Line object
                                 for the block that was sent to the LLM.
 
     Returns:
@@ -328,14 +326,18 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
         console.print("\n[bold]Applying changes...[/bold]")
         files_successfully_changed = set()
         files_with_errors = set()
+        edited_blocks_by_file = {}
         for block in edited_blocks:
+            edited_blocks_by_file.setdefault(block.filepath, []).append(block)
+
+        for filepath, blocks in edited_blocks_by_file.items():
             try:
-                edit_file_with_edited_block(block)
-                files_successfully_changed.add(block.filepath)
-                console.print(f"[green]Changes applied to {block.filepath}[/green]")
+                edit_file_with_edited_blocks(filepath, blocks)
+                files_successfully_changed.add(filepath)
+                console.print(f"[green]Changes applied to {filepath}[/green]")
             except Exception as e:
-                console.print(f"[bold red]Error applying changes to {block.filepath}: {e}[/bold red]")
-                files_with_errors.add(block.filepath)
+                console.print(f"[bold red]Error applying changes to {filepath}: {e}[/bold red]")
+                files_with_errors.add(filepath)
 
         console.print(f"\n[bold green]Finished applying changes.[/bold green]")
         console.print(f"Successfully modified {len(files_successfully_changed)} file(s).")
