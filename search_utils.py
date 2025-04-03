@@ -73,7 +73,7 @@ def run_rg(
         sys.exit(1) # Or handle more gracefully depending on context
     return result
 
-def generate_rg_command(user_prompt: str, folder: str) -> str:
+def generate_rg_command(user_prompt: str, folder: str, model: GeminiModel) -> str:
     """Asks the LLM to suggest rg command arguments based on the user prompt."""
     prompt = (f"""
 You are an expert programmer helping with code refactoring.
@@ -100,9 +100,7 @@ Start the arguments directly.
 Enclose regex patterns in double quotes if they contain spaces or special characters.
 """)
 
-    suggested_args_str = call_llm(
-         prompt, "Suggesting rg command", model=GeminiModel.GEMINI_2_5_PRO_EXP # Use more capable model
-    )
+    suggested_args_str = call_llm(prompt, "Suggesting rg command", model=model)
 
     if not suggested_args_str or suggested_args_str.startswith("Error:"):
          console.print("[bold red]LLM failed to provide a suggestion or returned an error. Please provide rg arguments manually.[/bold red]")
