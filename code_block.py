@@ -133,6 +133,7 @@ def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]
         code_block_debugging_file =  open("code_blocks.txt", "a")
         debug_console = Console(file=code_block_debugging_file)
     else:
+        code_block_debugging_file = None
         debug_console = None
         
     if debug_console:
@@ -156,4 +157,5 @@ def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]
     with open(filepath, 'w') as file:
         file.writelines(lines)
 
-    code_block_debugging_file.close()
+    if code_block_debugging_file:
+        code_block_debugging_file.close()

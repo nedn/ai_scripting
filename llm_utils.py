@@ -111,6 +111,7 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
         llm_log_file = open("llm_log.txt", "a")
         llm_log_console = Console(file=llm_log_file)
     else:
+        llm_log_file = None
         llm_log_console = None
         
     if llm_log_console:
@@ -151,3 +152,6 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
         console.print(f"[bold red]LLM API call failed: {e}[/bold red]")
         # console.print_exception() # Optional: for more details
         return f"Error: LLM API call failed. Details: {e}"
+    finally:
+        if llm_log_file:
+            llm_log_file.close()
