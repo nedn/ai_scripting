@@ -7,10 +7,10 @@ import sys
 import re
 from pathlib import Path
 from code_block import CodeBlock, Line, CodeMatchedResult, edit_file_with_edited_blocks
-from typing import Dict
+from typing import Dict, Optional
 from search_utils import gather_search_results, generate_rg_command
 from llm_utils import GeminiModel
-from ai_edit import edit_code_blocks
+from ai_edit import load_example_file, edit_code_blocks
 
 from rich.console import Console
 from rich.panel import Panel
@@ -23,7 +23,8 @@ console = Console()
 SEARCH_ARGS_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
 REPLACEMENT_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
 
-def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_confirm: bool = False) -> bool:
+
+def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_confirm: bool = False, example_file: Optional[str] = None) -> bool:
     """
     Process AI edits for the search results.
     
@@ -31,6 +32,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
         search_result: The search results containing matched code blocks
         user_prompt: The user's refactoring request
         auto_confirm: Whether to automatically confirm changes
+        example_file: Optional path to an example file
         
     Returns:
         bool: True if changes were applied successfully, False otherwise
@@ -38,8 +40,13 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     console.print(f"\n[bold]--- Step 2: Generate Replacements (LLM) ---[/bold]")
     console.print(f"Will process [bold cyan]{len(search_result.matched_blocks)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
+    # Load example file if provided
+    example_content = load_example_file(example_file)
+    if example_content:
+        console.print(f"[dim]Using example file: {example_file}[/dim]")
+
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matched_blocks, user_prompt, model=REPLACEMENT_MODEL)
+    edited_blocks = edit_code_blocks(search_result.matched_blocks, user_prompt, model=REPLACEMENT_MODEL, example_content=example_content)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
@@ -188,6 +195,10 @@ def main():
     parser.add_argument(
         "-y", "--yes", action="store_true", help="Automatically confirm all steps (Use with caution!)."
     )
+    parser.add_argument(
+        "-e", "--example",
+        help="Path to an example file showing the desired refactoring pattern. The file should contain an example input and output in the format shown in snprintf-edits.example",
+    )
 
     args = parser.parse_args()
 
@@ -258,7 +269,7 @@ def main():
         sys.exit(0)
 
     # Process AI edits
-    process_ai_edits(search_result, user_prompt, args.yes)
+    process_ai_edits(search_result, user_prompt, args.yes, args.example)
 
     console.print("\n[bold]Agentic Edit finished.[/bold]")
 

@@ -1,0 +1,31 @@
+The user's overall goal is: "Refactor the code to use snprintf instead of sprintf"
+
+Code blocks to refactor:
+
+<code_block>
+int main() {{
+    char buffer[100];
+    sprintf(buffer, "Hello, world!");
+    return 0;
+}}
+</code_block>
+
+<code_block>
+    // this is a comment
+    sprintf( lightname, "light%d", i );
+</code_block>
+
+Output:
+
+<code_block>
+int main() {{
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "Hello, world!");
+    return 0;
+}}
+</code_block>
+
+<code_block>
+    // this is a comment
+    snprintf( lightname, sizeof(lightname), "light%d", i );
+</code_block>

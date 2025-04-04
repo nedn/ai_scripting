@@ -1,9 +1,18 @@
-from typing import List
+from typing import List, Optional
 from code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
 from llm_utils import call_llm, GeminiModel, count_tokens
 from rich.console import Console
 
 console = Console()
+
+def load_example_file(example_file: str) -> Optional[str]:
+    """Load an example file if it exists."""
+    try:
+        with open(example_file, 'r') as f:
+            return f.read()
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")
+        return None
 
 def get_block_prompt(block: CodeBlock) -> str:
     return f"""
@@ -62,7 +71,8 @@ MAX_BLOCKS_PER_CALL = 20
 def edit_code_blocks(
     code_blocks: List[CodeBlock],
     edit_prompt: str,
-    model: GeminiModel 
+    model: GeminiModel,
+    example_content: Optional[str] = None
 ) -> List[CodeBlock]:
     """
     Takes a list of CodeBlocks, an edit prompt, and a model to generate edited code blocks.
@@ -72,6 +82,7 @@ def edit_code_blocks(
         code_blocks: List of CodeBlock objects to edit
         edit_prompt: The prompt describing the desired code changes
         model: The Gemini model to use for generating edits (defaults to GEMINI_2_0_FLASH_THINKING_EXP)
+        example_content: Optional example content showing the desired refactoring pattern
         
     Returns:
         List of edited CodeBlock objects with the same structure but potentially modified content
@@ -79,6 +90,9 @@ def edit_code_blocks(
     edited_blocks = []
     current_batch = []
     current_batch_tokens = 0
+
+    if not example_content:
+        example_content = load_example_file("snprintf-edits.example")
     
     # Base prompt template that will be reused for each batch
     base_prompt = f"""
@@ -98,36 +112,11 @@ Your task:
 8. Pay close attention to maintaining correct indentation for the modified lines, matching the original code style.
 9. Enclose each block's output in XML tags: <code_block> and </code_block>
 
+Here is an example of the desired refactoring pattern:
 [Example]
-The user's overall goal is: "Refactor the code to use snprintf instead of sprintf"
-
-Code blocks to refactor:
-
-<code_block>
-int main() {{
-    char buffer[100];
-    sprintf(buffer, "Hello, world!");
-    return 0;
-}}
-</code_block>
-<code_block>
-    // this is a comment
-    sprintf( lightname, "light%d", i );
-</code_block>
-
-Output:
-<code_block>
-int main() {{
-    char buffer[100];
-    snprintf(buffer, sizeof(buffer), "Hello, world!");
-    return 0;
-}}
-</code_block>
-<code_block>
-    // this is a comment
-    snprintf( lightname, sizeof(lightname), "light%d", i );
-</code_block>
+{example_content}
 [Example End]
+
 
 The user's overall goal is: "{edit_prompt}"
 Code blocks to refactor:
