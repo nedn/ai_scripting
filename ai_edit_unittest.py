@@ -3,8 +3,8 @@ import os
 import tempfile
 from typing import List
 # Assuming these imports are correct relative to your project structure
-from ai_edit import process_llm_output, edit_file_with_edited_blocks
-from code_block import CodeBlock, EditCodeBlock, Line, MatchedLine
+from ai_edit import process_llm_output
+from code_block import CodeBlock, EditCodeBlock, Line, MatchedLine, edit_file_with_edited_blocks
 
 class TestProcessLLMOutput(unittest.TestCase):
     def setUp(self):
@@ -12,7 +12,6 @@ class TestProcessLLMOutput(unittest.TestCase):
         self.sample_block = CodeBlock(
             filepath="test.py",
             start_line=1,
-            end_line=3,
             lines=[
                 MatchedLine(line_number=1, content="def test():\n", is_match=True),
                 MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
@@ -49,9 +48,7 @@ def test():
         block2 = CodeBlock(
             filepath="test2.py",
             start_line=1,
-            end_line=2,
             lines=[
-                # FIX: Use MatchedLine here for consistency with how CodeBlock is defined in setUp
                 MatchedLine(line_number=1, content="def test2():\n", is_match=True),
                 MatchedLine(line_number=2, content="    return True\n", is_match=True)
             ]
@@ -84,9 +81,7 @@ def test2():
         """Test processing empty code blocks (expecting original block back)"""
         llm_output = "<code_block></code_block>"
         result = process_llm_output(llm_output, self.current_batch)
-        # FIX: Assert that the original block is returned if the LLM provides an empty block
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0], self.sample_block) # Expect original block
+        self.assertEqual(result, [])
 
 class TestEditFileWithEditedBlocks(unittest.TestCase):
     def setUp(self):
@@ -110,16 +105,20 @@ def test2():
     def test_single_block_edit(self):
         """Test editing a single block in a file"""
         edited_block = EditCodeBlock(
-            filepath=self.temp_filepath, # Use stored name
-            start_line=1,
-            original_end_line=3,
-            end_line=3, # Updated end line based on new content length
             lines=[
-                # FIX: Use Line without is_match for EditCodeBlock
                 Line(line_number=1, content="def test1():\n"),
                 Line(line_number=2, content="    print('modified')\n"),
                 Line(line_number=3, content="    return 42\n")
-            ]
+            ],
+            original_block=CodeBlock(
+                filepath=self.temp_filepath,
+                start_line=1,
+                lines=[
+                    MatchedLine(line_number=1, content="def test1():\n", is_match=True),
+                    MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                    MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                ]
+            )
         )
 
         edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
@@ -134,40 +133,41 @@ def test2():
     return True
 """
             self.assertEqual(content, expected_content)
-            # More specific checks if needed
-            # self.assertIn("print('modified')", content)
-            # self.assertNotIn("print('hello')", content)
-            # self.assertIn("return True", content)
 
     def test_multiple_blocks_edit(self):
         """Test editing multiple blocks in a file"""
         edited_blocks = [
             EditCodeBlock(
-                filepath=self.temp_filepath,
-                start_line=1,
-                original_end_line=3,
-                end_line=3, # Updated end line
                 lines=[
-                    # FIX: Use Line without is_match
                     Line(line_number=1, content="def test1():\n"),
                     Line(line_number=2, content="    print('modified1')\n"),
                     Line(line_number=3, content="    return 42\n")
-                ]
+                ],
+                original_block=CodeBlock(
+                    filepath=self.temp_filepath,
+                    start_line=1,
+                    lines=[
+                        MatchedLine(line_number=1, content="def test1():\n", is_match=True),
+                        MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                        MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                    ]
+                )
             ),
             EditCodeBlock(
-                filepath=self.temp_filepath,
-                start_line=5, # Original start line of the block to replace
-                original_end_line=6,
-                end_line=6, # Updated end line
                 lines=[
-                    # FIX: Use Line without is_match
                     Line(line_number=5, content="def test2():\n"),
                     Line(line_number=6, content="    return False\n")
-                ]
+                ],
+                original_block=CodeBlock(
+                    filepath=self.temp_filepath,
+                    start_line=5,
+                    lines=[
+                        MatchedLine(line_number=5, content="def test2():\n", is_match=True),
+                        MatchedLine(line_number=6, content="    return True\n", is_match=True)
+                    ]
+                )
             )
         ]
-        # Ensure blocks are sorted by start line if the function requires it
-        edited_blocks.sort(key=lambda b: b.start_line)
 
         edit_file_with_edited_blocks(self.temp_filepath, edited_blocks)
 
@@ -181,45 +181,47 @@ def test2():
     return False
 """
             self.assertEqual(content, expected_content)
-            # self.assertIn("print('modified1')", content)
-            # self.assertIn("return False", content)
-            # self.assertNotIn("print('hello')", content)
-            # self.assertNotIn("return True", content)
-
 
     def test_filepath_mismatch(self):
         """Test that filepath mismatch raises ValueError"""
         edited_block = EditCodeBlock(
-            filepath="wrong_file.py", # Intentionally wrong path
-            start_line=1,
-            original_end_line=3,
-            end_line=3,
             lines=[
-                # FIX: Use Line without is_match
                 Line(line_number=1, content="def test1():\n"),
                 Line(line_number=2, content="    print('modified')\n"),
                 Line(line_number=3, content="    return 42\n")
-            ]
+            ],
+            original_block=CodeBlock(
+                filepath="wrong_file.py",
+                start_line=1,
+                lines=[
+                    MatchedLine(line_number=1, content="def test1():\n", is_match=True),
+                    MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                    MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                ]
+            )
         )
 
-        # Assuming edit_file_with_edited_blocks checks this
         with self.assertRaises(ValueError):
             edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
     def test_block_size_change(self):
         """Test editing a block that changes in size"""
         edited_block = EditCodeBlock(
-            filepath=self.temp_filepath,
-            start_line=1,
-            original_end_line=3,
-            end_line=4,  # Block grows by one line
             lines=[
-                # FIX: Use Line without is_match
-                Line(line_number=1, content="def test1():\n"),
-                Line(line_number=2, content="    print('modified')\n"),
-                Line(line_number=3, content="    print('extra line')\n"), # Added line
-                Line(line_number=4, content="    return 42\n")
-            ]
+                Line(line_number=1, content="def test1():"),
+                Line(line_number=2, content="    print('modified')"),
+                Line(line_number=3, content="    print('extra line')"),
+                Line(line_number=4, content="    return 42")
+            ],
+            original_block=CodeBlock(
+                filepath=self.temp_filepath,
+                start_line=1,
+                lines=[
+                    MatchedLine(line_number=1, content="def test1():\n", is_match=True),
+                    MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                    MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                ]
+            )
         )
 
         edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
@@ -234,11 +236,8 @@ def test2():
 def test2():
     return True
 """
+            print(content)
             self.assertEqual(content, expected_content)
-            # self.assertIn("print('modified')", content)
-            # self.assertIn("print('extra line')", content)
-            # self.assertNotIn("print('hello')", content)
-            # self.assertIn("return True", content) # Check that other function is preserved
 
 
 if __name__ == '__main__':

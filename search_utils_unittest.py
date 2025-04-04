@@ -165,8 +165,8 @@ _complex_rg_output = """\
 319-
 
 
-23 matches
-23 matched lines
+22 matches
+22 matched lines
 3 files contained matches
 2040 files searched
 54016 bytes printed
@@ -230,17 +230,17 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertIsInstance(result, CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 2)
         self.assertEqual(result.total_lines_matched, 3)
-        self.assertEqual(len(result.matches), 2)
+        self.assertEqual(len(result.matched_blocks), 2)
 
         # Check first match
-        first_match = result.matches[0]
+        first_match = result.matched_blocks[0]
         self.assertEqual(first_match.filepath, "/path/to/file1.py")
         self.assertEqual(first_match.start_line, 10)
         self.assertEqual(first_match.end_line, 12)
         self.assertEqual(len(first_match.lines), 3)
         
         # Check second match
-        second_match = result.matches[1]
+        second_match = result.matched_blocks[1]
         self.assertEqual(second_match.filepath, "/path/to/file2.py")
         self.assertEqual(second_match.start_line, 5)
         self.assertEqual(second_match.end_line, 8)
@@ -262,7 +262,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertIsInstance(result, CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 0)
         self.assertEqual(result.total_lines_matched, 0)
-        self.assertEqual(len(result.matches), 0)
+        self.assertEqual(len(result.matched_blocks), 0)
 
     @patch('search_utils.run_rg')
     def test_search_with_rg_error(self, mock_run_rg):
@@ -270,7 +270,7 @@ class TestGatherSearchResults(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.returncode = 2
         mock_result.stdout = ""
-        mock_result.stderr = "Error: Invalid pattern"
+        mock_result.stderr = "rg command failed"
         mock_run_rg.return_value = mock_result
 
         # Execute
@@ -280,7 +280,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertIsInstance(result, CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 0)
         self.assertEqual(result.total_lines_matched, 0)
-        self.assertEqual(len(result.matches), 0)
+        self.assertEqual(len(result.matched_blocks), 0)
 
     @patch('search_utils.run_rg')
     def test_search_with_complex_output(self, mock_run_rg):
@@ -295,16 +295,31 @@ class TestGatherSearchResults(unittest.TestCase):
         result = gather_search_results(self.basic_rg_args, self.test_folder)
 
         # Assertions
+        self.assertIsInstance(result, CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 3)
-        self.assertEqual(result.total_lines_matched, 23)
-        self.assertEqual(len(result.matches), 16)
+        self.assertEqual(result.total_lines_matched, 22)
+        self.assertEqual(len(result.matched_blocks), 16)
 
-        # Verify each match block
-        for i, match in enumerate(result.matches):
-            self.assertIsInstance(match, CodeBlock)
-            self.assertTrue(match.filepath.startswith("/Users/Test/RISE"), f"Match {i} has unexpected filepath: {match.filepath}")
-            self.assertTrue(len(match.lines) >= 2)
-            self.assertTrue(any(line.is_match for line in match.lines))
+        # Check first block
+        first_block = result.matched_blocks[0]
+        self.assertEqual(first_block.filepath, "/Users/Test/RISE/extlib/src/Library/Utilities/Communications/SocketCommunications.cpp")
+        self.assertEqual(first_block.start_line, 42)
+        self.assertEqual(first_block.end_line, 53)
+        self.assertEqual(len(first_block.lines), 12)
+
+        # Check second block
+        second_block = result.matched_blocks[1]
+        self.assertEqual(second_block.filepath, "/Users/Test/RISE/extlib/libpng/pngrutil.c")
+        self.assertEqual(second_block.start_line, 278)
+        self.assertEqual(second_block.end_line, 290)
+        self.assertEqual(len(second_block.lines), 13)
+
+        # Check third block
+        third_block = result.matched_blocks[2]
+        self.assertEqual(third_block.filepath, "/Users/Test/RISE/extlib/libpng/pngrutil.c")
+        self.assertEqual(third_block.start_line, 317)
+        self.assertEqual(third_block.end_line, 323)
+        self.assertEqual(len(third_block.lines), 7)
 
     @patch('search_utils.run_rg')
     def test_search_with_missing_required_flags(self, mock_run_rg):

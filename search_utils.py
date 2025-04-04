@@ -190,7 +190,7 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
         # Try to parse stats from stderr if stdout is empty
         if not rg_result.stdout.strip() and rg_result.stderr:
             result.rg_stats_raw = rg_result.stderr.strip()
-            _parse_rg_stats(result.rg_stats_raw, result)
+            _parse_rg_stats(result.rg_stats_raw)
         return result
 
     # --- Parsing rg Output ---
@@ -329,41 +329,24 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
 
 
 def _parse_rg_stats(stats_str: str):
-    """Helper to parse the --stats output and return the number of files and lines matched."""
+    """Parse the stats section of rg output and update the result object."""
     if not stats_str:
-        return
+        return 0, 0
 
-    # Regex using non-capturing groups for flexibility
-    stats_matches_regex = re.compile(r"(\d+)\s+(?:match|matches)")  # Matches "1 match" or "1 matches"
-    stats_lines_regex = re.compile(r"(\d+)\s+matched lines")
-    stats_files_regex = re.compile(r"(\d+)\s+files contained matches")
+    # Regex patterns for different stats lines
+    matches_re = re.compile(r"^(\d+)\s+matches$")
+    lines_re = re.compile(r"^(\d+)\s+matched lines$")
+    files_re = re.compile(r"^(\d+)\s+files contained matches$")
 
-    lines_matched = 0
-    files_matched = 0
+    matches = 0
+    lines = 0
+    files = 0
 
-    # Search within the stats block
-    lines_match = stats_lines_regex.search(stats_str)
-    if lines_match:
-        try:
-            lines_matched = int(lines_match.group(1))
-        except ValueError:
-            pass
-
-    files_match = stats_files_regex.search(stats_str)
-    if files_match:
-        try:
-            files_matched = int(files_match.group(1))
-        except ValueError:
-            pass
-
-    # If "matched lines" is missing, fall back to "matches" count
-    if lines_matched == 0:
-        matches_match = stats_matches_regex.search(stats_str)
-        if matches_match:
-            try:
-                # Use this as a fallback, although it counts occurrences, not lines with occurrences
-                lines_matched = int(matches_match.group(1))
-            except ValueError:
-                pass
-
-    return files_matched, lines_matched
+    for line in stats_str.split('\n'):
+        if matches_re.search(line):
+            matches = int(matches_re.search(line).group(1))
+        elif lines_re.search(line):
+            lines = int(lines_re.search(line).group(1))
+        elif files_re.search(line):
+            files = int(files_re.search(line).group(1))
+    return files, lines

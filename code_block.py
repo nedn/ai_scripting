@@ -37,12 +37,14 @@ class CodeBlock:
     @property
     def code_block_with_line_numbers(self) -> str:
         """Returns the full code block as a single string with line numbers."""
-        return "\n".join(f"{line.line_number}: {line.content}" for line in self.lines)
+        lines = [f"{line.line_number}: {line.content.rstrip()}" for line in self.lines]
+        return "\n".join(lines) + "\n"
     
     @property
     def code_block_without_line_numbers(self) -> str:
         """Returns the full code block as a single string without line numbers."""
-        return "\n".join(line.content for line in self.lines)
+        lines = [line.content.rstrip() for line in self.lines]
+        return "\n".join(lines) + "\n"
 
     @property
     def matched_lines_numbers(self) -> List[int]:

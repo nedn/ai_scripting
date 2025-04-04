@@ -1,9 +1,9 @@
 import unittest
-from code_block import CodeLine, MatchedLine, CodeBlock, CodeMatchedResult
+from code_block import Line, MatchedLine, CodeBlock, CodeMatchedResult
 
 class TestCodeLine(unittest.TestCase):
     def test_code_line_creation(self):
-        line = CodeLine(line_number=1, content="test line")
+        line = Line(line_number=1, content="test line")
         self.assertEqual(line.line_number, 1)
         self.assertEqual(line.content, "test line")
 
@@ -16,16 +16,14 @@ class TestMatchedLine(unittest.TestCase):
 
 class TestCodeBlock(unittest.TestCase):
     def setUp(self):
-        self.lines = [
-            MatchedLine(line_number=1, content="context line", is_match=False),
-            MatchedLine(line_number=2, content="matched line", is_match=True),
-            MatchedLine(line_number=3, content="another context", is_match=False)
-        ]
         self.code_block = CodeBlock(
             filepath="test.py",
             start_line=1,
-            end_line=3,
-            lines=self.lines
+            lines=[
+                MatchedLine(line_number=1, content="def test():\n", is_match=True),
+                MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+            ]
         )
 
     def test_code_block_creation(self):
@@ -35,50 +33,51 @@ class TestCodeBlock(unittest.TestCase):
         self.assertEqual(len(self.code_block.lines), 3)
 
     def test_code_block_with_line_numbers(self):
-        expected = "1: context line\n2: matched line\n3: another context"
+        expected = "1: def test():\n2:     print('hello')\n3:     return 42\n"
         self.assertEqual(self.code_block.code_block_with_line_numbers, expected)
 
     def test_code_block_without_line_numbers(self):
-        expected = "context line\nmatched line\nanother context"
+        expected = "def test():\n    print('hello')\n    return 42\n"
         self.assertEqual(self.code_block.code_block_without_line_numbers, expected)
 
     def test_matched_lines_numbers(self):
-        self.assertEqual(self.code_block.matched_lines_numbers, [2])
+        self.assertEqual(self.code_block.matched_lines_numbers, [1, 2, 3])
 
 class TestCodeMatchedResult(unittest.TestCase):
     def setUp(self):
-        self.lines = [
-            MatchedLine(line_number=1, content="matched line", is_match=True),
-            MatchedLine(line_number=2, content="another match", is_match=True)
-        ]
         self.code_block = CodeBlock(
             filepath="test.py",
             start_line=1,
-            end_line=2,
-            lines=self.lines
+            lines=[
+                MatchedLine(line_number=1, content="def test():\n", is_match=True),
+                MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                MatchedLine(line_number=3, content="    return 42\n", is_match=False)
+            ]
         )
         self.result = CodeMatchedResult(
-            total_files_matched=1,
-            total_lines_matched=2,
-            matches=[self.code_block],
-            rg_stats_raw="2 matches",
-            rg_command_used="rg test"
+            matched_blocks=[self.code_block],
+            rg_stats_raw="2 matches\n2 matched lines\n1 files contained matches",
+            rg_command_used="rg --regexp='test' --stats"
         )
 
     def test_code_matched_result_creation(self):
+        """Test creating a CodeMatchedResult with matches."""
+        self.assertEqual(len(self.result.matched_blocks), 1)
         self.assertEqual(self.result.total_files_matched, 1)
         self.assertEqual(self.result.total_lines_matched, 2)
-        self.assertEqual(len(self.result.matches), 1)
-        self.assertEqual(self.result.rg_stats_raw, "2 matches")
-        self.assertEqual(self.result.rg_command_used, "rg test")
+        self.assertEqual(self.result.rg_stats_raw, "2 matches\n2 matched lines\n1 files contained matches")
+        self.assertEqual(self.result.rg_command_used, "rg --regexp='test' --stats")
 
     def test_empty_code_matched_result(self):
-        empty_result = CodeMatchedResult()
+        """Test creating an empty CodeMatchedResult."""
+        empty_result = CodeMatchedResult(
+            matched_blocks=[],
+            rg_stats_raw="0 matches\n0 matched lines\n0 files contained matches",
+            rg_command_used="rg --regexp='test' --stats"
+        )
+        self.assertEqual(len(empty_result.matched_blocks), 0)
         self.assertEqual(empty_result.total_files_matched, 0)
         self.assertEqual(empty_result.total_lines_matched, 0)
-        self.assertEqual(len(empty_result.matches), 0)
-        self.assertEqual(empty_result.rg_stats_raw, "")
-        self.assertEqual(empty_result.rg_command_used, "")
 
 if __name__ == '__main__':
     unittest.main()
