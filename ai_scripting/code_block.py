@@ -95,6 +95,24 @@ class EditCodeBlock(CodeBlock):
         return self.original_block.len_lines
 
 
+@dataclass
+class TargetFile:
+    """Represents a target file that can be edited."""
+    filepath: str
+    blocks_to_edit: List[EditCodeBlock]
+    _edited_blocks: List[EditCodeBlock] = None
+
+    @property
+    def edited_blocks(self) -> List[EditCodeBlock]:
+        """Returns the list of edited blocks."""
+        return self._edited_blocks
+
+    @property
+    def add_edited_block(self, edited_block: EditCodeBlock):
+        """Adds an edited block to the list of edited blocks."""
+        self._edited_blocks.append(edited_block)
+        
+
 def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
     """Creates an EditCodeBlock from a code string."""
     lines = [Line(line_number=i+1, content=line) for i, line in enumerate(editted_code_string.split("\n"))]
@@ -106,10 +124,20 @@ class CodeMatchedResult:
     """Encapsulates the results of an rg search."""
     _total_lines_matched: int = None # Number of lines *directly* matching the pattern
     _total_files_matches: int = None # Number of files that matched the pattern
-    matched_blocks: List[CodeBlock] = field(default_factory=list) # List of matched code blocks
+    _matched_blocks: List[CodeBlock] = None
+    matched_files: List[TargetFile] = field(default_factory=list) # List of matched files
     rg_stats_raw: str = "" # Raw statistics output from rg --stats
     rg_command_used: str = "" # The full rg command executed
 
+    @property
+    def matched_blocks(self) -> List[CodeBlock]:
+        """Returns the list of matched blocks."""
+        if self._matched_blocks is None:
+            self._matched_blocks = []
+            for file in self.matched_files:
+                self._matched_blocks += file.blocks_to_edit
+        return self._matched_blocks
+    
     @property
     def total_files_matched(self) -> int:
         """Returns the number of files that matched the pattern."""

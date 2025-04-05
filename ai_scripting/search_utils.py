@@ -262,11 +262,12 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
     # It allows for potential leading/trailing whitespace around the content
     line_regex = re.compile(r"^(\d+)([:-])(.*)$")
 
+    matched_blocks: List[CodeBlock] = []
     def finalize_current_match():
         """Helper function to add the current match to results if it exists."""
         nonlocal current_match
         if current_match:
-            result.matched_blocks.append(current_match)
+            matched_blocks.append(current_match)
             current_match = None
 
     for line in match_lines:
@@ -310,7 +311,6 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
                 # Append to existing block
                 # Ensure file paths match (should always be true in valid rg output)
                 if current_match.filepath != current_filepath:
-                     console.print(f"[yellow]Warning: File path mismatch within block. Expected {current_match.filepath}, got {current_filepath}[/yellow]")
                      raise RuntimeError("File path mismatch within block.")
                 current_match.lines.append(code_line)
 
@@ -326,6 +326,16 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
 
     # After the loop, add the last processed match if it exists
     finalize_current_match()
+    file_path_by_blocks = {}
+    for block in matched_blocks:
+        if block.filepath not in file_path_by_blocks:
+            file_path_by_blocks[block.filepath] = []
+        file_path_by_blocks[block.filepath].append(block)
+        
+    result.matched_files = [TargetFile(
+        filepath=filepath,
+        blocks_to_edit=blocks
+    ) for filepath, blocks in file_path_by_blocks.items()]
 
 
 def _parse_rg_stats(stats_str: str):
