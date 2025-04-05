@@ -6,11 +6,12 @@ import shlex
 import sys
 import re
 from pathlib import Path
-from code_block import CodeBlock, Line, CodeMatchedResult, edit_file_with_edited_blocks
 from typing import Dict, Optional
-from search_utils import gather_search_results, generate_rg_command
-from llm_utils import GeminiModel
-from ai_edit import load_example_file, edit_code_blocks
+
+from ai_scripting.code_block import CodeBlock, Line, CodeMatchedResult, edit_file_with_edited_blocks
+from ai_scripting.search_utils import gather_search_results, generate_rg_command
+from ai_scripting.llm_utils import GeminiModel
+from ai_scripting.ai_edit import load_example_file, edit_code_blocks
 
 from rich.console import Console
 from rich.panel import Panel

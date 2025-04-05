@@ -1,5 +1,5 @@
 import unittest
-from code_block import Line, MatchedLine, CodeBlock, CodeMatchedResult
+from ai_scripting.code_block import Line, MatchedLine, CodeBlock, CodeMatchedResult
 
 class TestCodeLine(unittest.TestCase):
     def test_code_line_creation(self):

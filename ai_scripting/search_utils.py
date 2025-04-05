@@ -5,8 +5,8 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 from rich.console import Console
-from llm_utils import call_llm, GeminiModel
-from code_block import CodeMatchedResult, CodeBlock, Line, MatchedLine
+from ai_scripting.llm_utils import call_llm, GeminiModel
+from ai_scripting.code_block import CodeMatchedResult, CodeBlock, Line, MatchedLine
 
 console = Console()
 

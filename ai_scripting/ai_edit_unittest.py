@@ -3,8 +3,8 @@ import os
 import tempfile
 from typing import List
 # Assuming these imports are correct relative to your project structure
-from ai_edit import process_llm_output
-from code_block import CodeBlock, EditCodeBlock, Line, MatchedLine, edit_file_with_edited_blocks
+from ai_scripting.ai_edit import process_llm_output
+from ai_scripting.code_block import CodeBlock, EditCodeBlock, Line, MatchedLine, edit_file_with_edited_blocks
 
 class TestProcessLLMOutput(unittest.TestCase):
     def setUp(self):

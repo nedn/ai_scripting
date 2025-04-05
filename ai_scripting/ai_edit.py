@@ -1,6 +1,6 @@
 from typing import List, Optional
-from code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
-from llm_utils import call_llm, GeminiModel, count_tokens
+from ai_scripting.code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
+from ai_scripting.llm_utils import call_llm, GeminiModel, count_tokens
 from rich.console import Console
 
 console = Console()
