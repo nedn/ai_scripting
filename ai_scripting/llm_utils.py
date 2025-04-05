@@ -43,12 +43,12 @@ class GeminiModel:
     """
     Represents available Gemini 2.0 and 2.5 models and their properties.
 
-    Each model is represented as a class attribute (e.g., GEMINI_2_5_PRO_EXP)
+    Each model is represented as a class attribute (e.g., GEMINI_2_5_PRO)
     which holds a hashable _ModelData object containing its details.
     """
 
     # Gemini 2.5 Models
-    GEMINI_2_5_PRO_EXP: ClassVar[_ModelData] = _ModelData(
+    GEMINI_2_5_PRO: ClassVar[_ModelData] = _ModelData(
         code_name='gemini-2.5-pro-exp-03-25',
         input_tokens=1_000_000,
         output_tokens=64_000,
@@ -79,7 +79,8 @@ class GeminiModel:
 
     _models: ClassVar[Dict[str, _ModelData]] = {
         m.code_name: m for m in [
-            GEMINI_2_5_PRO_EXP,
+            GEMINI_2_5_PRO
+    ,
             GEMINI_2_0_FLASH,
             GEMINI_2_0_FLASH_LITE,
             GEMINI_2_0_FLASH_THINKING_EXP,

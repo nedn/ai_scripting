@@ -1,7 +1,9 @@
 from typing import List, Optional
+from ai_scripting import code_block
 from ai_scripting.code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
 from ai_scripting.llm_utils import call_llm, GeminiModel, count_tokens
 from rich.console import Console
+from enum import Enum
 
 console = Console()
 
@@ -21,7 +23,7 @@ def get_block_prompt(block: CodeBlock) -> str:
 </code_block>
 """
 
-def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[EditCodeBlock]:
+def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[EditCodeBlock]:
     """
     Process LLM output to generate edited code blocks.
     
@@ -63,6 +65,26 @@ def process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edit
     
     return edited_blocks
 
+class EditPlan:
+    def __init__(self, files: List[code_block.TargetFile]):
+        self._files = files
+
+    @property
+    def files(self) -> List[code_block.TargetFile]:
+        return self._files
+
+    @property 
+    def print_plan(self) -> str:
+        console.print(f"[bold green]Edit Plan:[/bold green]")
+        console.print(f"[bold green]Files to edit:[/bold green]")
+        for file in self._files:
+            console.print(f"[bold green]{file.filepath}[/bold green]")
+
+
+    def apply_edits(self):
+        for file in self._files:
+            file.apply_edits()
+
 # Limits the number of blocks that can be processed in a single LLM call
 # to avoid exceeding the model's output token limit and ensure the quality 
 # of the output
@@ -73,7 +95,7 @@ def edit_code_blocks(
     edit_prompt: str,
     model: GeminiModel,
     example_content: Optional[str] = None
-) -> List[CodeBlock]:
+) -> List[EditCodeBlock]:
     """
     Takes a list of CodeBlocks, an edit prompt, and a model to generate edited code blocks.
     Batches multiple blocks into a single LLM call to optimize token usage.
@@ -138,7 +160,7 @@ Code blocks to refactor:
             # Process the current batch
             batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
             llm_output = call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks", model=model)
-            edited_blocks.extend(process_llm_output(llm_output, current_batch))
+            edited_blocks.extend(_process_llm_output(llm_output, current_batch))
             
             # Reset batch
             current_batch = []
@@ -152,6 +174,44 @@ Code blocks to refactor:
     if current_batch:
         batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
         llm_output = call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks", model=model)
-        edited_blocks.extend(process_llm_output(llm_output, current_batch))
+        edited_blocks.extend(_process_llm_output(llm_output, current_batch))
     
     return edited_blocks
+
+class EditStrategy(Enum):
+    REPLACE_MATCHED_BLOCKS = "replace_matched_blocks"
+
+def edit_files(
+    files: List[code_block.TargetFile],
+    prompt: str,
+    examples: Optional[str] = None,
+    model: GeminiModel = GeminiModel.GEMINI_2_5_PRO,
+    edit_strategy: EditStrategy = EditStrategy.REPLACE_MATCHED_BLOCKS
+) -> EditPlan:
+    """
+    Edit multiple files based on a given prompt and strategy.
+    
+    Args:
+        files: List of TargetFile objects containing the files and blocks to edit
+        prompt: The prompt describing the desired code changes
+        examples: Optional examples showing the desired refactoring pattern
+        model: The Gemini model to use for generating edits
+        edit_strategy: The strategy to use for editing the files
+        
+    Returns:
+        List of EditCodeBlock objects containing the proposed changes
+    """
+    all_blocks = []
+    
+    for target_file in files:
+        all_blocks.extend(target_file.blocks_to_edit)
+    
+    edited_blocks = edit_code_blocks(all_blocks, prompt, model, examples)
+    
+    for target_file in files:
+        for block in edited_blocks:
+            if block.filepath == target_file.filepath:
+                target_file.add_edited_block(block)
+
+    plan = EditPlan(files)
+    return plan

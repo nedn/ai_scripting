@@ -2,15 +2,48 @@ import subprocess
 import sys
 import shlex
 import re
+from enum import Enum
+
 from dataclasses import dataclass, field
 from typing import List, Optional
 from rich.console import Console
 from ai_scripting.llm_utils import call_llm, GeminiModel
 from ai_scripting.code_block import CodeMatchedResult, CodeBlock, Line, MatchedLine
-
+from ai_scripting import code_block
 console = Console()
 
+class FileTypes(Enum):
+    PYTHON = "py"
+    C = "c"
+    H = "h"
+    CPP = "cpp"
+    JAVA = "java"
+    KOTLIN = "kt"
+    SCALA = "scala"
+    GOLANG = "go"
+    TYPESCRIPT = "ts"
+    JAVASCRIPT = "js"
+    CSHARP = "cs"
+    SWIFT = "swift"
+    RUBY = "rb"
+    PHP = "php"
+    PERL = "pl"
+    RUST = "rs"
+
 # --- Helper Functions ---
+
+def search(
+    search_regex: str, directory: str, file_types: List[FileTypes],
+    context_lines: int = 5
+) -> CodeMatchedResult:
+    """Searches for the given regex in the given directory and returns the results."""
+    rg_args = ["--regexp", search_regex]
+    for file_type in file_types:
+        rg_args += ["--type", file_type.value]
+    rg_args += ["--context", str(context_lines)]
+    rg_args += ["--stats", "--line-number", "--heading"]
+    return gather_search_results(' '.join(rg_args), directory)
+
 
 def run_rg(
     rg_args: List[str], folder: str, check: bool = True
@@ -241,15 +274,6 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     assert result.total_files_matched == rg_files_matched, f"Total files matched: result {result.total_files_matched} != rg {rg_files_matched}"
     assert result.total_lines_matched == rg_lines_matched, f"Total lines matched: result {result.total_lines_matched} != rg {rg_lines_matched}"
 
-    # --- Display Summary ---
-    console.print(f"\nFound [bold cyan]{result.total_files_matched}[/bold cyan] file(s) with [bold cyan]{result.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(result.matched_blocks)}[/bold cyan] code blocks.")
-    if result.matched_blocks:
-        # Display info about the first block as a sample
-        first_match = result.matched_blocks[0]
-        console.print(f"[dim]First block found in: {first_match.filepath} (Lines {first_match.start_line}-{first_match.end_line})[/dim]")
-        console.print(f"[dim]Code block:[/dim]")
-        console.print(first_match.code_block_with_line_numbers)
-
     return result
 
 
@@ -332,7 +356,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
             file_path_by_blocks[block.filepath] = []
         file_path_by_blocks[block.filepath].append(block)
         
-    result.matched_files = [TargetFile(
+    result.matched_files = [code_block.TargetFile(
         filepath=filepath,
         blocks_to_edit=blocks
     ) for filepath, blocks in file_path_by_blocks.items()]

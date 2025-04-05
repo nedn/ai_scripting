@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 from rich.console import Console
 
+console = Console()
 
 @dataclass
 class Line:
@@ -101,16 +102,21 @@ class TargetFile:
     filepath: str
     blocks_to_edit: List[EditCodeBlock]
     _edited_blocks: List[EditCodeBlock] = None
-
-    @property
-    def edited_blocks(self) -> List[EditCodeBlock]:
-        """Returns the list of edited blocks."""
-        return self._edited_blocks
+    _already_applied_edits: bool = False
 
     @property
     def add_edited_block(self, edited_block: EditCodeBlock):
         """Adds an edited block to the list of edited blocks."""
+        if self._already_applied_edits:
+            raise ValueError("Edits already applied")
         self._edited_blocks.append(edited_block)
+
+    def apply_edits(self):
+        """Applies the edits to the file."""
+        if self._already_applied_edits:
+            raise ValueError("Edits already applied")
+        _edit_file_with_edited_blocks(self.filepath, self.edited_blocks)
+        self._already_applied_edits = True
         
 
 def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
@@ -155,11 +161,21 @@ class CodeMatchedResult:
             self._total_lines_matched = sum(b.num_matched_lines for b in self.matched_blocks)
         return self._total_lines_matched
 
+    def print_results(self):
+        """Prints the results of the search."""
+        console.print(f"\nFound [bold cyan]{self.total_files_matched}[/bold cyan] file(s) with [bold cyan]{self.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(self.matched_blocks)}[/bold cyan] code blocks.")
+        if len(self.matched_blocks) > 0:
+            example_matched_block = self.matched_blocks[0]  
+            console.print(f"[dim]First block found in: {example_matched_block.filepath} (Lines {example_matched_block.start_line}-{example_matched_block.end_line})[/dim]")
+            console.print(f"[dim]Code block:[/dim]")
+            console.print(example_matched_block.code_block_with_line_numbers)
+
+        
 
 DEBUG_CODE_BLOCKS_EDITING = False
 
 
-def edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]):
+def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock]):
     """
     Takes a list of edit CodeBlocks and edits the file they represent.
     
