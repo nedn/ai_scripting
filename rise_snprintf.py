@@ -17,7 +17,8 @@ def main():
     # to refactor the RISE snprintf code
 
     # 1. search for all the snprintf calls from the root of the RISE repo
-    RISE_ROOT = os.path.abspath(os.path.join("..", "RISE"))
+    # Change this to the path of the RISE repo depending on where you cloned it
+    RISE_ROOT = os.path.abspath(os.path.join("..", "RISE")) 
     search_results = search_utils.search(
         search_regex="snprintf", directory=RISE_ROOT, 
         file_types=[search_utils.FileTypes.C, search_utils.FileTypes.CPP, search_utils.FileTypes.H],
