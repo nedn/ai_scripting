@@ -52,8 +52,7 @@ def main():
     
     # 2. Generate an edit plan for the matched files
     # In this case, since we are replacing sprintf with snprintf, we only need to edit the matched blocks
-    # and not the whole file.
-
+    # and not the whole file to minimize tokens used and improve the quality of the edits.
     edit_plan = ai_edit.create_ai_plan_for_editing_files(
             files_to_edit, 
             prompt="Replace sprintf with snprintf",
