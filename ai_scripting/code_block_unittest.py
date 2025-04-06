@@ -147,31 +147,31 @@ def test2():
         edited_blocks = [
             EditCodeBlock(
                 lines=[
-                    Line(line_number=1, content="def test1():\n"),
-                    Line(line_number=2, content="    print('modified1')\n"),
-                    Line(line_number=3, content="    return 42\n")
+                    Line(line_number=1, content="def test1():"),
+                    Line(line_number=2, content="    print('modified1')"),
+                    Line(line_number=3, content="    return 42")
                 ],
                 original_block=CodeBlock(
                     filepath=self.temp_filepath,
                     start_line=1,
                     lines=[
-                        MatchedLine(line_number=1, content="def test1():\n", is_match=True),
-                        MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
-                        MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                        MatchedLine(line_number=1, content="def test1():", is_match=True),
+                        MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                        MatchedLine(line_number=3, content="    return 42", is_match=True)
                     ]
                 )
             ),
             EditCodeBlock(
                 lines=[
-                    Line(line_number=5, content="def test2():\n"),
-                    Line(line_number=6, content="    return False\n")
+                    Line(line_number=7, content="def test2():"),
+                    Line(line_number=8, content="    return False")
                 ],
                 original_block=CodeBlock(
                     filepath=self.temp_filepath,
-                    start_line=5,
+                    start_line=7,
                     lines=[
-                        MatchedLine(line_number=5, content="def test2():\n", is_match=True),
-                        MatchedLine(line_number=6, content="    return True\n", is_match=True)
+                        MatchedLine(line_number=7, content="def test2():", is_match=True),
+                        MatchedLine(line_number=8, content="    return True", is_match=True)
                     ]
                 )
             )
@@ -185,6 +185,8 @@ def test2():
     print('modified1')
     return 42
 
+# comment in the middle    
+
 def test2():
     return False
 """
@@ -194,17 +196,17 @@ def test2():
         """Test that filepath mismatch raises ValueError"""
         edited_block = EditCodeBlock(
             lines=[
-                Line(line_number=1, content="def test1():\n"),
-                Line(line_number=2, content="    print('modified')\n"),
-                Line(line_number=3, content="    return 42\n")
+                Line(line_number=1, content="def test1():"),
+                Line(line_number=2, content="    print('modified')"),
+                Line(line_number=3, content="    return 42")
             ],
             original_block=CodeBlock(
                 filepath="wrong_file.py",
                 start_line=1,
                 lines=[
-                    MatchedLine(line_number=1, content="def test1():\n", is_match=True),
-                    MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
-                    MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                    MatchedLine(line_number=1, content="def test1():", is_match=True),
+                    MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                    MatchedLine(line_number=3, content="    return 42", is_match=True)
                 ]
             )
         )
@@ -225,9 +227,9 @@ def test2():
                 filepath=self.temp_filepath,
                 start_line=1,
                 lines=[
-                    MatchedLine(line_number=1, content="def test1():\n", is_match=True),
-                    MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
-                    MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                    MatchedLine(line_number=1, content="def test1():", is_match=True),
+                    MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                    MatchedLine(line_number=3, content="    return 42", is_match=True)
                 ]
             )
         )
@@ -240,6 +242,8 @@ def test2():
     print('modified')
     print('extra line')
     return 42
+
+# comment in the middle    
 
 def test2():
     return True
