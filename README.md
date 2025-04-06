@@ -50,7 +50,7 @@ cd ../ai_scripting
 
 Execute the script with:
 ```bash
-python3 rise_snprintf.py
+python3 samples/rise_snprintf.py
 ```
 
 By default, the script will:
@@ -62,7 +62,7 @@ By default, the script will:
 
 You can limit the number of files to edit using the `--max-files-to-apply-ai-edit` parameter:
 ```bash
-python3 rise_snprintf.py --max-files-to-apply-ai-edit 5
+python3 samples/rise_snprintf.py --max-files-to-apply-ai-edit 5
 ```
 
 Set the value to 0 to apply edits to all matched files.
@@ -70,11 +70,10 @@ Set the value to 0 to apply edits to all matched files.
 ## Project Structure
 
 - `ai_scripting/` - Core package containing the main functionality
-- `rise_snprintf.py` - Example script demonstrating code refactoring
+- `samples/rise_snprintf.py` - Example script demonstrating code refactoring
+- `samples/snprintf-edits.example` - Example file for edit patterns 
 - `run_tests.py` - Test runner for the project
-- `agentic_edit.py` - AI-powered editing utilities
-- `snprintf-edits.example` - Example file for edit patterns
-- `rg_help.txt` - Documentation for ripgrep integration
+- `agentic_edit.py` - AI-powered editing commandline
 
 ## Dependencies
 

@@ -10,6 +10,11 @@ import os
 import argparse
 import shlex
 
+import sys
+SAMPLE_DIR = os.path.abspath(os.path.dirname(__file__))
+AI_SCRIPTING_DIR = os.path.abspath(os.path.join(SAMPLE_DIR, ".."))
+sys.path.append(AI_SCRIPTING_DIR)
+
 import ai_scripting.search_utils as search_utils
 import ai_scripting.ai_edit as ai_edit
 import ai_scripting.llm_utils as llm_utils
@@ -21,12 +26,12 @@ console = console.Console()
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Refactor RISE snprintf code')
-    parser.add_argument('--max-files-to-apply-ai-edit', type=int, default=5,
+    parser.add_argument('--max-files-to-apply-ai-edit', "-m", type=int, default=5,
                       help='Maximum number of files to apply AI edits to. Set to 0 to apply to all files.')
     args = parser.parse_args()
 
     # Change this to the path of the RISE repo depending on where you cloned it
-    RISE_ROOT = os.path.abspath(os.path.join("..", "RISE")) 
+    RISE_ROOT = os.path.abspath(os.path.join(AI_SCRIPTING_DIR, '..', "RISE")) 
 
 
     # 1. search for all the sprintf calls from the root of the RISE repo
@@ -56,8 +61,8 @@ def main():
     edit_plan = ai_edit.create_ai_plan_for_editing_files(
             files_to_edit, 
             prompt="Replace sprintf with snprintf",
-            examples=ai_edit.load_example_file("snprintf-edits.example"), 
-            model=llm_utils.GeminiModel.GEMINI_2_0_FLASH_THINKING_EXP, 
+            examples=ai_edit.load_example_file(os.path.join(SAMPLE_DIR, "snprintf-edits.example")), 
+            model=llm_utils.GeminiModel.GEMINI_2_5_PRO, 
             edit_strategy=ai_edit.EditStrategy.REPLACE_MATCHED_BLOCKS)
 
     # 3. Print the edit plan

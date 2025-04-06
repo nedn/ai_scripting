@@ -49,7 +49,7 @@ class GeminiModel:
 
     # Gemini 2.5 Models
     GEMINI_2_5_PRO: ClassVar[_ModelData] = _ModelData(
-        code_name='gemini-2.5-pro-exp-03-25',
+        code_name='gemini-2.5-pro-preview-03-25',
         input_tokens=1_000_000,
         output_tokens=64_000,
         version_family="2.5"
