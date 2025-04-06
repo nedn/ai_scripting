@@ -116,7 +116,7 @@ python3 samples/refactor_import.py
 
 ## Generating Custom Refactoring Scripts
 
-You can generate your own refactoring scripts using the `generate_refactor_script.py` tool. This tool takes a description of your refactoring task and generates a complete Python script that follows the same structure as the example scripts.
+You can use AI to generate your own AI refactoring scripts with the `generate_refactor_script.py` tool. This tool takes a description of your refactoring task and generates a complete Python script that follows the same structure as the example scripts.
 
 ### Usage
 
