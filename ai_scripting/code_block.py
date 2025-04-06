@@ -243,10 +243,10 @@ class CodeMatchedResult:
             self._total_lines_matched = sum(b.num_matched_lines for b in self.matched_blocks)
         return self._total_lines_matched
 
-    def print_results(self):
+    def print_results(self, print_matches: bool = True):
         """Prints the results of the search."""
         console.print(f"\nFound [bold cyan]{self.total_files_matched}[/bold cyan] file(s) with [bold cyan]{self.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(self.matched_blocks)}[/bold cyan] code blocks.")
-        if len(self.matched_blocks) > 0:
+        if len(self.matched_blocks) > 0 and print_matches:
             example_matched_block = self.matched_blocks[0]  
             console.print(f"[dim]First block found in: {example_matched_block.filepath} (Lines {example_matched_block.start_line}-{example_matched_block.end_line})[/dim]")
             console.print(f"[dim]Code block:[/dim]")

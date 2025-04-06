@@ -51,9 +51,9 @@ def main():
     search_results.print_results()
 
     files_to_edit = search_results.matched_files
-    if args.max_files_to_apply_ai_edit > 0:
-        files_to_edit = files_to_edit[:args.max_files_to_apply_ai_edit]
-        console.print(f"[yellow]Limiting AI edits to {len(files_to_edit)} files. Set --max-files-to-apply-ai-edit to 0 to apply to all files.[/yellow]")
+    if args.max_files > 0:
+        files_to_edit = files_to_edit[:args.max_files]
+        console.print(f"[yellow]Limiting AI edits to {len(files_to_edit)} files. Set --max-files to 0 to apply to all files.[/yellow]")
     
     # 2. Generate an edit plan for the matched files
     # In this case, since we are replacing sprintf with snprintf, we only need to edit the matched blocks

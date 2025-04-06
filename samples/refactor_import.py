@@ -80,11 +80,11 @@ def main():
 
     # --- Filter files based on --max-files-to-apply-ai-edit ---
     files_to_edit = search_results.matched_files
-    if args.max_files_to_apply_ai_edit > 0 and len(files_to_edit) > args.max_files_to_apply_ai_edit:
-        files_to_edit = files_to_edit[:args.max_files_to_apply_ai_edit]
+    if args.max_files > 0 and len(files_to_edit) > args.max_files:
+        files_to_edit = files_to_edit[:args.max_files]
         console.print(
             f"[yellow]Limiting AI edits to the first {len(files_to_edit)} files. "
-            f"Use --max-files-to-apply-ai-edit 0 to apply to all ({len(search_results.matched_files)}) found files.[/yellow]"
+            f"Use --max-files 0 to apply to all ({len(search_results.matched_files)}) found files.[/yellow]"
         )
     else:
          console.print(f"Preparing to edit {len(files_to_edit)} files.")
@@ -105,7 +105,6 @@ def main():
         console.print(f"[bold red]Error: Could not load example file: {example_file_path}[/bold red]")
         console.print("[yellow]Proceeding without examples, but results may be less accurate.[/yellow]")
 
-    console.print(f"Using LLM model: {selected_model_enum.value}")
     console.print("Creating AI edit plan (this may take some time)...")
 
     try:
