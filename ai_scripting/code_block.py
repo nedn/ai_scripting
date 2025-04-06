@@ -155,6 +155,7 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
         
     if debug_console:
         debug_console.print(f" ======== FILE PATH: {filepath} ======== ")
+
     # Apply each edit block
     for block in edit_blocks:
         if debug_console:
@@ -163,7 +164,7 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
         # Calculate the actual line numbers in the current file state   
         lines_index_start_original_block = block.start_line + line_offset - 1
         lines_index_end_original_block = lines_index_start_original_block + block.len_lines_of_original_block 
-        
+
         # Replace the lines in the file with the edited content if the lines
         lines = lines[:lines_index_start_original_block] + [l.content + "\n" for l in block.lines] + lines[lines_index_end_original_block:]
         
