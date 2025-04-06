@@ -1,0 +1,32 @@
+Refactor the import statements in the provided Python code to follow the Google Python Style Guide.
+- Group imports: standard library, third-party, application-specific.
+- Sort imports alphabetically within each group.
+- Separate groups with a blank line.
+- Use `import module` style primarily.
+- For `from module import name`, sort names alphabetically if multiple.
+
+[Input Code Block]
+<code_block>
+import sys
+import os
+import requests # third-party
+from my_app import utils, models # application specific
+import math
+from collections import defaultdict, Counter # standard library
+import numpy as np # third-party
+from other_local_module import helper # application specific
+</code_block>
+
+[Output Code Block]
+<code_block>
+import math
+import os
+import sys
+from collections import Counter, defaultdict
+
+import numpy as np # third-party
+import requests # third-party
+
+from my_app import models, utils # application specific
+from other_local_module import helper # application specific
+</code_block>

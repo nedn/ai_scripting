@@ -26,7 +26,7 @@ console = console.Console()
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Refactor RISE snprintf code')
-    parser.add_argument('--max-files-to-apply-ai-edit', "-m", type=int, default=5,
+    parser.add_argument('--max-files', "-m", type=int, default=5,
                       help='Maximum number of files to apply AI edits to. Set to 0 to apply to all files.')
     args = parser.parse_args()
 
