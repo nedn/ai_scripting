@@ -89,3 +89,14 @@ This project is licensed under the terms specified in the LICENSE file.
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+To run all the unittests:
+```bash
+run_tests.py
+```
+
+To run only the unittests whose name has substring `foo`
+
+```bash
+run_tests.py foo
+```
