@@ -73,13 +73,11 @@ class EditPlan:
     def files(self) -> List[code_block.TargetFile]:
         return self._files
 
-    @property 
-    def print_plan(self) -> str:
+    def print_plan(self):
         console.print(f"[bold green]Edit Plan:[/bold green]")
         console.print(f"[bold green]Files to edit:[/bold green]")
         for file in self._files:
             console.print(f"[bold green]{file.filepath}[/bold green]")
-
 
     def apply_edits(self):
         for file in self._files:
@@ -180,8 +178,9 @@ Code blocks to refactor:
 
 class EditStrategy(Enum):
     REPLACE_MATCHED_BLOCKS = "replace_matched_blocks"
+    REPLACE_WHOLE_FILE = "replace_whole_file"
 
-def edit_files(
+def create_ai_plan_for_editing_files(
     files: List[code_block.TargetFile],
     prompt: str,
     examples: Optional[str] = None,

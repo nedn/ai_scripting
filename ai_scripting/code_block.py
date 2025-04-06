@@ -101,10 +101,9 @@ class TargetFile:
     """Represents a target file that can be edited."""
     filepath: str
     blocks_to_edit: List[EditCodeBlock]
-    _edited_blocks: List[EditCodeBlock] = None
+    _edited_blocks: List[EditCodeBlock] = field(default_factory=list)
     _already_applied_edits: bool = False
 
-    @property
     def add_edited_block(self, edited_block: EditCodeBlock):
         """Adds an edited block to the list of edited blocks."""
         if self._already_applied_edits:
@@ -115,62 +114,9 @@ class TargetFile:
         """Applies the edits to the file."""
         if self._already_applied_edits:
             raise ValueError("Edits already applied")
-        _edit_file_with_edited_blocks(self.filepath, self.edited_blocks)
+        _edit_file_with_edited_blocks(self.filepath, self._edited_blocks)
         self._already_applied_edits = True
-        
 
-def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
-    """Creates an EditCodeBlock from a code string."""
-    lines = [Line(line_number=i+1, content=line) for i, line in enumerate(editted_code_string.split("\n"))]
-    return EditCodeBlock(lines=lines, original_block=original_block)
-
-
-@dataclass
-class CodeMatchedResult:
-    """Encapsulates the results of an rg search."""
-    _total_lines_matched: int = None # Number of lines *directly* matching the pattern
-    _total_files_matches: int = None # Number of files that matched the pattern
-    _matched_blocks: List[CodeBlock] = None
-    matched_files: List[TargetFile] = field(default_factory=list) # List of matched files
-    rg_stats_raw: str = "" # Raw statistics output from rg --stats
-    rg_command_used: str = "" # The full rg command executed
-
-    @property
-    def matched_blocks(self) -> List[CodeBlock]:
-        """Returns the list of matched blocks."""
-        if self._matched_blocks is None:
-            self._matched_blocks = []
-            for file in self.matched_files:
-                self._matched_blocks += file.blocks_to_edit
-        return self._matched_blocks
-    
-    @property
-    def total_files_matched(self) -> int:
-        """Returns the number of files that matched the pattern."""
-        if self._total_files_matches is None:
-            files_matches = set()
-            for b in self.matched_blocks:
-                files_matches.add(b.filepath)
-            self._total_files_matches = len(files_matches)  
-        return self._total_files_matches
-
-    @property
-    def total_lines_matched(self) -> int:
-        """Returns the number of lines that matched the pattern."""
-        if self._total_lines_matched is None:
-            self._total_lines_matched = sum(b.num_matched_lines for b in self.matched_blocks)
-        return self._total_lines_matched
-
-    def print_results(self):
-        """Prints the results of the search."""
-        console.print(f"\nFound [bold cyan]{self.total_files_matched}[/bold cyan] file(s) with [bold cyan]{self.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(self.matched_blocks)}[/bold cyan] code blocks.")
-        if len(self.matched_blocks) > 0:
-            example_matched_block = self.matched_blocks[0]  
-            console.print(f"[dim]First block found in: {example_matched_block.filepath} (Lines {example_matched_block.start_line}-{example_matched_block.end_line})[/dim]")
-            console.print(f"[dim]Code block:[/dim]")
-            console.print(example_matched_block.code_block_with_line_numbers)
-
-        
 
 DEBUG_CODE_BLOCKS_EDITING = False
 
@@ -230,3 +176,55 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
 
     if code_block_debugging_file:
         code_block_debugging_file.close()
+        
+
+def CreateEditCodeBlockFromCodeString(editted_code_string: str, original_block: CodeBlock=None) -> EditCodeBlock:
+    """Creates an EditCodeBlock from a code string."""
+    lines = [Line(line_number=i+1, content=line) for i, line in enumerate(editted_code_string.split("\n"))]
+    return EditCodeBlock(lines=lines, original_block=original_block)
+
+
+@dataclass
+class CodeMatchedResult:
+    """Encapsulates the results of an rg search."""
+    _total_lines_matched: int = None # Number of lines *directly* matching the pattern
+    _total_files_matches: int = None # Number of files that matched the pattern
+    _matched_blocks: List[CodeBlock] = None
+    matched_files: List[TargetFile] = field(default_factory=list) # List of matched files
+    rg_stats_raw: str = "" # Raw statistics output from rg --stats
+    rg_command_used: str = "" # The full rg command executed
+
+    @property
+    def matched_blocks(self) -> List[CodeBlock]:
+        """Returns the list of matched blocks."""
+        if self._matched_blocks is None:
+            self._matched_blocks = []
+            for file in self.matched_files:
+                self._matched_blocks += file.blocks_to_edit
+        return self._matched_blocks
+    
+    @property
+    def total_files_matched(self) -> int:
+        """Returns the number of files that matched the pattern."""
+        if self._total_files_matches is None:
+            files_matches = set()
+            for b in self.matched_blocks:
+                files_matches.add(b.filepath)
+            self._total_files_matches = len(files_matches)  
+        return self._total_files_matches
+
+    @property
+    def total_lines_matched(self) -> int:
+        """Returns the number of lines that matched the pattern."""
+        if self._total_lines_matched is None:
+            self._total_lines_matched = sum(b.num_matched_lines for b in self.matched_blocks)
+        return self._total_lines_matched
+
+    def print_results(self):
+        """Prints the results of the search."""
+        console.print(f"\nFound [bold cyan]{self.total_files_matched}[/bold cyan] file(s) with [bold cyan]{self.total_lines_matched}[/bold cyan] matching lines, forming [bold cyan]{len(self.matched_blocks)}[/bold cyan] code blocks.")
+        if len(self.matched_blocks) > 0:
+            example_matched_block = self.matched_blocks[0]  
+            console.print(f"[dim]First block found in: {example_matched_block.filepath} (Lines {example_matched_block.start_line}-{example_matched_block.end_line})[/dim]")
+            console.print(f"[dim]Code block:[/dim]")
+            console.print(example_matched_block.code_block_with_line_numbers)
