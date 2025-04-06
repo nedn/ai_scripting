@@ -103,12 +103,34 @@ class TargetFile:
     blocks_to_edit: List[EditCodeBlock]
     _edited_blocks: List[EditCodeBlock] = field(default_factory=list)
     _already_applied_edits: bool = False
+    _edited_block_for_whole_file: EditCodeBlock = None
+    _original_file_content: str = None
 
     def add_edited_block(self, edited_block: EditCodeBlock):
         """Adds an edited block to the list of edited blocks."""
         if self._already_applied_edits:
             raise ValueError("Edits already applied")
         self._edited_blocks.append(edited_block)
+
+    @property
+    def original_file_content(self) -> str:
+        """Returns the full original file content as a single string."""
+        if self._original_file_content is None:
+            if self._already_applied_edits:
+                raise ValueError("Edits already applied. Cannot get original file content.")
+            with open(self.filepath, 'r') as file:
+                self._original_file_content = file.read()
+        return self._original_file_content
+
+    @property
+    def whole_file_as_edit_block(self) -> EditCodeBlock:
+        """Returns the whole file as an edit block."""
+        if self._edited_block_for_whole_file is None:
+            self._edited_block_for_whole_file = CodeBlock(
+                    filepath=self.filepath, 
+                    start_line=1, 
+                    lines=[Line(line_number=i+1, content=line) for i, line in enumerate(self.original_file_content.split("\n"))])
+        return self._edited_block_for_whole_file
 
     def apply_edits(self):
         """Applies the edits to the file."""

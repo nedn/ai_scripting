@@ -16,7 +16,7 @@ def load_example_file(example_file: str) -> Optional[str]:
         console.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")
         return None
 
-def get_block_prompt(block: CodeBlock) -> str:
+def _get_block_prompt(block: CodeBlock) -> str:
     return f"""
 <code_block>
 {block.code_block_without_line_numbers}
@@ -147,7 +147,7 @@ Code blocks to refactor:
     
     for i, block in enumerate(code_blocks):
         # Create the block-specific prompt part
-        block_prompt = get_block_prompt(block) 
+        block_prompt = _get_block_prompt(block) 
         
         # Calculate tokens for this block
         block_tokens = count_tokens(block_prompt)
@@ -200,12 +200,16 @@ def create_ai_plan_for_editing_files(
     Returns:
         List of EditCodeBlock objects containing the proposed changes
     """
-    all_blocks = []
+    all_blocks_to_edit = []
     
-    for target_file in files:
-        all_blocks.extend(target_file.blocks_to_edit)
-    
-    edited_blocks = edit_code_blocks(all_blocks, prompt, model, examples)
+    if edit_strategy == EditStrategy.REPLACE_MATCHED_BLOCKS:
+        for target_file in files:
+            all_blocks_to_edit.extend(target_file.blocks_to_edit)
+    elif edit_strategy == EditStrategy.REPLACE_WHOLE_FILE:
+        for target_file in files:
+            all_blocks_to_edit.append(target_file.whole_file_as_edit_block)
+
+    edited_blocks = edit_code_blocks(all_blocks_to_edit, prompt, model, examples)
     
     for target_file in files:
         for block in edited_blocks:

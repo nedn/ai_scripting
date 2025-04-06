@@ -36,7 +36,16 @@ def search(
     search_regex: str, directory: str, file_types: List[FileTypes],
     context_lines: int = 5
 ) -> CodeMatchedResult:
-    """Searches for the given regex in the given directory and returns the results."""
+    """Searches for the given regex in the given directory and returns the results.
+    
+    Args:
+        search_regex: The regex to search for. 
+        directory: The directory to search in.
+        file_types: The file types to search in.
+        context_lines: The number of lines of context to include in the results.
+
+    Returns:
+    """
     rg_args = ["--regexp", search_regex]
     for file_type in file_types:
         rg_args += ["--type", file_type.value]
