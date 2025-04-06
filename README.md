@@ -93,10 +93,13 @@ By default, the script will:
 
 ### Customization
 
-You can limit the number of files to edit using the `--max-files-to-apply-ai-edit` parameter:
+You can limit the number of files to edit using the `--max-files` parameter:
 ```bash
-python3 samples/rise_snprintf.py --max-files-to-apply-ai-edit 5
+python3 samples/rise_snprintf.py --max-files 7
 ```
+
+By default, this flag is set to 5 so that user can manually validate the AI
+generated refactoring first before applying AI edits to to all files.
 
 Set the value to 0 to apply edits to all matched files.
 
