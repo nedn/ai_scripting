@@ -102,9 +102,9 @@ def edit_code_blocks(
         edit_prompt: The prompt describing the desired code changes
         model: The Gemini model to use for generating edits (defaults to GEMINI_2_0_FLASH_THINKING_EXP)
         example_content: Optional example content showing the desired refactoring pattern
-        max_blocks_per_ai_call: The maximum number of blocks to include in a single AI call. 
+        max_blocks_per_ai_call: The maximum number of blocks to include in a single AI call.
             Note: while the large context window of the LLM can handle a lot more, increasing this
-            number will result in slower response times and lower quality edits (see 
+            number will result in slower response times and lower quality edits (see
             the paper "NoLiMa: Long-Context Evaluation Beyond Literal Matching" https://arxiv.org/abs/2502.05167)
 
     Returns:
@@ -219,7 +219,7 @@ def create_ai_plan_for_editing_files(
         for target_file in files:
             all_blocks_to_edit.append(target_file.whole_file_as_edit_block)
 
-    edited_blocks = edit_code_blocks(all_blocks_to_edit, prompt, model, examples, 
+    edited_blocks = edit_code_blocks(all_blocks_to_edit, prompt, model, examples,
                                      max_blocks_per_ai_call=max_blocks_per_ai_call)
 
     for target_file in files:

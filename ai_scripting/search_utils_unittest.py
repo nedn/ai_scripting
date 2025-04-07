@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from ai_scripting.search_utils import gather_search_results, CodeMatchedResult, CodeBlock, Line
+from unittest import mock
+from ai_scripting import search_utils
 
 
 _complex_rg_output = """\
@@ -214,20 +214,20 @@ class TestGatherSearchResults(unittest.TestCase):
         # Complex rg output for testing various formats
         self.complex_output = _complex_rg_output
 
-    @patch('ai_scripting.search_utils.run_rg')
+    @mock.patch('ai_scripting.search_utils.run_rg')
     def test_successful_search_with_matches(self, mock_run_rg):
         # Setup mock
-        mock_result = MagicMock()
+        mock_result = mock.MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = self.simple_rg_output
         mock_result.stderr = ""
         mock_run_rg.return_value = mock_result
 
         # Execute
-        result = gather_search_results(self.basic_rg_args, self.test_folder)
+        result = search_utils.gather_search_results(self.basic_rg_args, self.test_folder)
 
         # Assertions
-        self.assertIsInstance(result, CodeMatchedResult)
+        self.assertIsInstance(result, search_utils.CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 2)
         self.assertEqual(result.total_lines_matched, 3)
         self.assertEqual(len(result.matched_blocks), 2)
@@ -238,7 +238,7 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(first_match.start_line, 10)
         self.assertEqual(first_match.end_line, 12)
         self.assertEqual(len(first_match.lines), 3)
-        
+
         # Check second match
         second_match = result.matched_blocks[1]
         self.assertEqual(second_match.filepath, "/path/to/file2.py")
@@ -246,56 +246,56 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(second_match.end_line, 8)
         self.assertEqual(len(second_match.lines), 4)
 
-    @patch('ai_scripting.search_utils.run_rg')
+    @mock.patch('ai_scripting.search_utils.run_rg')
     def test_search_with_no_matches(self, mock_run_rg):
         # Setup mock
-        mock_result = MagicMock()
+        mock_result = mock.MagicMock()
         mock_result.returncode = 1
         mock_result.stdout = ""
         mock_result.stderr = self.no_matches_output
         mock_run_rg.return_value = mock_result
 
         # Execute
-        result = gather_search_results(self.basic_rg_args, self.test_folder)
+        result = search_utils.gather_search_results(self.basic_rg_args, self.test_folder)
 
         # Assertions
-        self.assertIsInstance(result, CodeMatchedResult)
+        self.assertIsInstance(result, search_utils.CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 0)
         self.assertEqual(result.total_lines_matched, 0)
         self.assertEqual(len(result.matched_blocks), 0)
 
-    @patch('ai_scripting.search_utils.run_rg')
+    @mock.patch('ai_scripting.search_utils.run_rg')
     def test_search_with_rg_error(self, mock_run_rg):
         # Setup mock
-        mock_result = MagicMock()
+        mock_result = mock.MagicMock()
         mock_result.returncode = 2
         mock_result.stdout = ""
         mock_result.stderr = "rg command failed"
         mock_run_rg.return_value = mock_result
 
         # Execute
-        result = gather_search_results(self.basic_rg_args, self.test_folder)
+        result = search_utils.gather_search_results(self.basic_rg_args, self.test_folder)
 
         # Assertions
-        self.assertIsInstance(result, CodeMatchedResult)
+        self.assertIsInstance(result, search_utils.CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 0)
         self.assertEqual(result.total_lines_matched, 0)
         self.assertEqual(len(result.matched_blocks), 0)
 
-    @patch('ai_scripting.search_utils.run_rg')
+    @mock.patch('ai_scripting.search_utils.run_rg')
     def test_search_with_complex_output(self, mock_run_rg):
         # Setup mock with complex output including various separators and line formats
-        mock_result = MagicMock()
+        mock_result = mock.MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = self.complex_output
         mock_result.stderr = ""
         mock_run_rg.return_value = mock_result
 
         # Execute
-        result = gather_search_results(self.basic_rg_args, self.test_folder)
+        result = search_utils.gather_search_results(self.basic_rg_args, self.test_folder)
 
         # Assertions
-        self.assertIsInstance(result, CodeMatchedResult)
+        self.assertIsInstance(result, search_utils.CodeMatchedResult)
         self.assertEqual(result.total_files_matched, 3)
         self.assertEqual(result.total_lines_matched, 22)
         self.assertEqual(len(result.matched_blocks), 16)
@@ -321,12 +321,12 @@ class TestGatherSearchResults(unittest.TestCase):
         self.assertEqual(third_block.end_line, 323)
         self.assertEqual(len(third_block.lines), 7)
 
-    @patch('ai_scripting.search_utils.run_rg')
+    @mock.patch('ai_scripting.search_utils.run_rg')
     def test_search_with_missing_required_flags(self, mock_run_rg):
         # Test with missing required flags - should raise ValueError
         incomplete_args = "-e 'test'"
-        
-        mock_result = MagicMock()
+
+        mock_result = mock.MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = self.simple_rg_output
         mock_result.stderr = ""
@@ -334,7 +334,8 @@ class TestGatherSearchResults(unittest.TestCase):
 
         # Execute
         with self.assertRaises(ValueError):
-            gather_search_results(incomplete_args, self.test_folder)
+            search_utils.gather_search_results(incomplete_args, self.test_folder)
 
 if __name__ == '__main__':
     unittest.main()
+

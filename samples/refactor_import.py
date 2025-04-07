@@ -5,8 +5,8 @@ This script uses ai_scripting.search_utils to find Python files containing impor
 and ai_scripting.ai_edit to apply AI-driven refactoring based on the Google Style Guide rules.
 It operates by instructing the AI to rewrite the entire file content, focusing on the import section.
 """
-import os
 import argparse
+import os
 import shlex
 import sys
 
@@ -19,22 +19,22 @@ if AI_SCRIPTING_DIR not in sys.path:
 # --- End ai_scripting path setup ---
 
 try:
-    import ai_scripting.search_utils as search_utils
-    import ai_scripting.ai_edit as ai_edit
-    import ai_scripting.llm_utils as llm_utils
+    from ai_scripting import ai_edit
+    from ai_scripting import llm_utils
+    from ai_scripting import search_utils
 except ImportError as e:
     print(f"Error importing ai_scripting modules: {e}")
     print(f"Ensure the ai_scripting directory ({AI_SCRIPTING_DIR}) is accessible and in your Python path.")
     sys.exit(1)
 
-import rich.console as console
+from rich import console as rich_console # Renamed to avoid conflict with the instance below
 
-console = console.Console()
+console = rich_console.Console()
 
 # Based on https://google.github.io/styleguide/pyguide.html#22-imports
 _PROMPT = """
 Refactor the import statements in the provided Python code to strictly follow the
-Google Python Style Guide. 
+Google Python Style Guide.
 
 2.2 Imports
 Use import statements for packages and modules only, not for individual types, classes, or functions.
@@ -98,7 +98,7 @@ Yes:
   import absl.flags
   from doctor.who import jodie
 
-  _FOO = absl.flags.DEFINE_string(...)  
+  _FOO = absl.flags.DEFINE_string(...)
 ```
 
 Yes:
@@ -228,3 +228,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

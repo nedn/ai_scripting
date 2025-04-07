@@ -1,17 +1,18 @@
-from google import genai
-from rich.console import Console
+import dataclasses
 import os
 import sys
-
-import dataclasses
 from typing import List, Optional, Dict, ClassVar
-from dotenv import load_dotenv
+
+import dotenv
+from google import genai
+from rich import console
 import tiktoken
 
-console = Console() 
+
+console = console.Console()
 
 # Load environment variables from .env file
-load_dotenv()
+dotenv.load_dotenv()
 
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
@@ -110,23 +111,23 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
 
     if DEBUG_LLM_CALLS:
         llm_log_file = open("llm_log.txt", "a")
-        llm_log_console = Console(file=llm_log_file)
+        llm_log_console = console.Console(file=llm_log_file)
     else:
         llm_log_file = None
         llm_log_console = None
-        
+
     if llm_log_console:
         llm_log_console.print("==== PROMT ====")
         llm_log_console.print(prompt)
-    
+
     # Count input tokens
     input_tokens = count_tokens(prompt)
     if input_tokens > model.input_tokens:
         console.print(f"[bold red]Input tokens: {input_tokens} exceeds the maximum allowed tokens: {model.input_tokens}[/bold red]")
         raise ValueError(f"Input tokens: {input_tokens} exceeds the maximum allowed tokens: {model.input_tokens}")
-    
+
     console.print(f"[yellow]Input tokens: {input_tokens}[/yellow]")
-    
+
     try:
         client = genai.Client(api_key=API_KEY)
         response = client.models.generate_content(
@@ -138,12 +139,12 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
             # print("DEBUG: No candidates in response.")
             # print(f"DEBUG: Prompt feedback: {response.prompt_feedback}")
             return "Error: LLM response blocked or empty. Check safety settings or prompt."
-        
+
         # Get response text and count output tokens
         response_text = response.text
         output_tokens = count_tokens(response_text)
         console.print(f"[green]Output tokens: {output_tokens}[/green]")
-        
+
         if llm_log_console:
             llm_log_console.print("==== RESPONSE ====")
             llm_log_console.print(response_text)
@@ -156,3 +157,5 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel) -> str:
     finally:
         if llm_log_file:
             llm_log_file.close()
+
+

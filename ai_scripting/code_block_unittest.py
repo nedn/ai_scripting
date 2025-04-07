@@ -1,31 +1,30 @@
 import unittest
 import os
-import tempfile 
-from ai_scripting.code_block import Line, MatchedLine, CodeBlock, CodeMatchedResult, TargetFile, EditCodeBlock
-from ai_scripting.code_block import _edit_file_with_edited_blocks
+import tempfile
+from ai_scripting import code_block
 
 class TestCodeLine(unittest.TestCase):
     def test_code_line_creation(self):
-        line = Line(line_number=1, content="test line")
+        line = code_block.Line(line_number=1, content="test line")
         self.assertEqual(line.line_number, 1)
         self.assertEqual(line.content, "test line")
 
 class TestMatchedLine(unittest.TestCase):
     def test_matched_line_creation(self):
-        line = MatchedLine(line_number=1, content="test line", is_match=True)
+        line = code_block.MatchedLine(line_number=1, content="test line", is_match=True)
         self.assertEqual(line.line_number, 1)
         self.assertEqual(line.content, "test line")
         self.assertTrue(line.is_match)
 
 class TestCodeBlock(unittest.TestCase):
     def setUp(self):
-        self.code_block = CodeBlock(
+        self.code_block = code_block.CodeBlock(
             filepath="test.py",
             start_line=1,
             lines=[
-                MatchedLine(line_number=1, content="def test():\n", is_match=True),
-                MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
-                MatchedLine(line_number=3, content="    return 42\n", is_match=True)
+                code_block.MatchedLine(line_number=1, content="def test():\n", is_match=True),
+                code_block.MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                code_block.MatchedLine(line_number=3, content="    return 42\n", is_match=True)
             ]
         )
 
@@ -48,20 +47,20 @@ class TestCodeBlock(unittest.TestCase):
 
 class TestCodeMatchedResult(unittest.TestCase):
     def setUp(self):
-        self.code_block = CodeBlock(
+        self.code_block = code_block.CodeBlock(
             filepath="test.py",
             start_line=1,
             lines=[
-                MatchedLine(line_number=1, content="def test():\n", is_match=True),
-                MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
-                MatchedLine(line_number=3, content="    return 42\n", is_match=False)
+                code_block.MatchedLine(line_number=1, content="def test():\n", is_match=True),
+                code_block.MatchedLine(line_number=2, content="    print('hello')\n", is_match=True),
+                code_block.MatchedLine(line_number=3, content="    return 42\n", is_match=False)
             ]
         )
-        self.target_file = TargetFile(
+        self.target_file = code_block.TargetFile(
             filepath="test.py",
             blocks_to_edit=[self.code_block]
         )
-        self.result = CodeMatchedResult(
+        self.result = code_block.CodeMatchedResult(
             matched_files=[self.target_file],
             rg_stats_raw="2 matches\n2 matched lines\n1 files contained matches",
             rg_command_used="rg --regexp='test' --stats"
@@ -77,8 +76,8 @@ class TestCodeMatchedResult(unittest.TestCase):
 
     def test_empty_code_matched_result(self):
         """Test creating an empty CodeMatchedResult."""
-        empty_result = CodeMatchedResult(
-            matched_files=[TargetFile(filepath="test.py", blocks_to_edit=[])],
+        empty_result = code_block.CodeMatchedResult(
+            matched_files=[code_block.TargetFile(filepath="test.py", blocks_to_edit=[])],
             rg_stats_raw="0 matches\n0 matched lines\n0 files contained matches",
             rg_command_used="rg --regexp='test' --stats"
         )
@@ -95,7 +94,7 @@ class TestEditFileWithEditedBlocks(unittest.TestCase):
     print('hello')
     return 42
 
-# comment in the middle    
+# comment in the middle
 
 def test2():
     return True
@@ -110,24 +109,24 @@ def test2():
 
     def test_single_block_edit(self):
         """Test editing a single block in a file"""
-        edited_block = EditCodeBlock(
+        edited_block = code_block.EditCodeBlock(
             lines=[
-                Line(line_number=1, content="def testFoo():"),
-                Line(line_number=2, content="    print('modified')"),
-                Line(line_number=3, content="    return 42")
+                code_block.Line(line_number=1, content="def testFoo():"),
+                code_block.Line(line_number=2, content="    print('modified')"),
+                code_block.Line(line_number=3, content="    return 42")
             ],
-            original_block=CodeBlock(
+            original_block=code_block.CodeBlock(
                 filepath=self.temp_filepath,
                 start_line=1,
                 lines=[
-                    MatchedLine(line_number=1, content="def test1():", is_match=True),
-                    MatchedLine(line_number=2, content="    print('hello')", is_match=True),
-                    MatchedLine(line_number=3, content="    return 42", is_match=True)
+                    code_block.MatchedLine(line_number=1, content="def test1():", is_match=True),
+                    code_block.MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                    code_block.MatchedLine(line_number=3, content="    return 42", is_match=True)
                 ]
             )
         )
 
-        _edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
+        code_block._edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
         with open(self.temp_filepath, 'r') as f:
             content = f.read()
@@ -135,7 +134,7 @@ def test2():
     print('modified')
     return 42
 
-# comment in the middle    
+# comment in the middle
 
 def test2():
     return True
@@ -145,39 +144,39 @@ def test2():
     def test_multiple_blocks_edit(self):
         """Test editing multiple blocks in a file"""
         edited_blocks = [
-            EditCodeBlock(
+            code_block.EditCodeBlock(
                 lines=[
-                    Line(line_number=1, content="def test1():"),
-                    Line(line_number=2, content="    print('modified1')"),
-                    Line(line_number=3, content="    return 42")
+                    code_block.Line(line_number=1, content="def test1():"),
+                    code_block.Line(line_number=2, content="    print('modified1')"),
+                    code_block.Line(line_number=3, content="    return 42")
                 ],
-                original_block=CodeBlock(
+                original_block=code_block.CodeBlock(
                     filepath=self.temp_filepath,
                     start_line=1,
                     lines=[
-                        MatchedLine(line_number=1, content="def test1():", is_match=True),
-                        MatchedLine(line_number=2, content="    print('hello')", is_match=True),
-                        MatchedLine(line_number=3, content="    return 42", is_match=True)
+                        code_block.MatchedLine(line_number=1, content="def test1():", is_match=True),
+                        code_block.MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                        code_block.MatchedLine(line_number=3, content="    return 42", is_match=True)
                     ]
                 )
             ),
-            EditCodeBlock(
+            code_block.EditCodeBlock(
                 lines=[
-                    Line(line_number=7, content="def test2():"),
-                    Line(line_number=8, content="    return False")
+                    code_block.Line(line_number=7, content="def test2():"),
+                    code_block.Line(line_number=8, content="    return False")
                 ],
-                original_block=CodeBlock(
+                original_block=code_block.CodeBlock(
                     filepath=self.temp_filepath,
                     start_line=7,
                     lines=[
-                        MatchedLine(line_number=7, content="def test2():", is_match=True),
-                        MatchedLine(line_number=8, content="    return True", is_match=True)
+                        code_block.MatchedLine(line_number=7, content="def test2():", is_match=True),
+                        code_block.MatchedLine(line_number=8, content="    return True", is_match=True)
                     ]
                 )
             )
         ]
 
-        _edit_file_with_edited_blocks(self.temp_filepath, edited_blocks)
+        code_block._edit_file_with_edited_blocks(self.temp_filepath, edited_blocks)
 
         with open(self.temp_filepath, 'r') as f:
             content = f.read()
@@ -185,7 +184,7 @@ def test2():
     print('modified1')
     return 42
 
-# comment in the middle    
+# comment in the middle
 
 def test2():
     return False
@@ -194,47 +193,47 @@ def test2():
 
     def test_filepath_mismatch(self):
         """Test that filepath mismatch raises ValueError"""
-        edited_block = EditCodeBlock(
+        edited_block = code_block.EditCodeBlock(
             lines=[
-                Line(line_number=1, content="def test1():"),
-                Line(line_number=2, content="    print('modified')"),
-                Line(line_number=3, content="    return 42")
+                code_block.Line(line_number=1, content="def test1():"),
+                code_block.Line(line_number=2, content="    print('modified')"),
+                code_block.Line(line_number=3, content="    return 42")
             ],
-            original_block=CodeBlock(
+            original_block=code_block.CodeBlock(
                 filepath="wrong_file.py",
                 start_line=1,
                 lines=[
-                    MatchedLine(line_number=1, content="def test1():", is_match=True),
-                    MatchedLine(line_number=2, content="    print('hello')", is_match=True),
-                    MatchedLine(line_number=3, content="    return 42", is_match=True)
+                    code_block.MatchedLine(line_number=1, content="def test1():", is_match=True),
+                    code_block.MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                    code_block.MatchedLine(line_number=3, content="    return 42", is_match=True)
                 ]
             )
         )
 
         with self.assertRaises(ValueError):
-            _edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
+            code_block._edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
     def test_block_size_change(self):
         """Test editing a block that changes in size"""
-        edited_block = EditCodeBlock(
+        edited_block = code_block.EditCodeBlock(
             lines=[
-                Line(line_number=1, content="def test1():"),
-                Line(line_number=2, content="    print('modified')"),
-                Line(line_number=3, content="    print('extra line')"),
-                Line(line_number=4, content="    return 42")
+                code_block.Line(line_number=1, content="def test1():"),
+                code_block.Line(line_number=2, content="    print('modified')"),
+                code_block.Line(line_number=3, content="    print('extra line')"),
+                code_block.Line(line_number=4, content="    return 42")
             ],
-            original_block=CodeBlock(
+            original_block=code_block.CodeBlock(
                 filepath=self.temp_filepath,
                 start_line=1,
                 lines=[
-                    MatchedLine(line_number=1, content="def test1():", is_match=True),
-                    MatchedLine(line_number=2, content="    print('hello')", is_match=True),
-                    MatchedLine(line_number=3, content="    return 42", is_match=True)
+                    code_block.MatchedLine(line_number=1, content="def test1():", is_match=True),
+                    code_block.MatchedLine(line_number=2, content="    print('hello')", is_match=True),
+                    code_block.MatchedLine(line_number=3, content="    return 42", is_match=True)
                 ]
             )
         )
 
-        _edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
+        code_block._edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
         with open(self.temp_filepath, 'r') as f:
             content = f.read()
@@ -243,7 +242,7 @@ def test2():
     print('extra line')
     return 42
 
-# comment in the middle    
+# comment in the middle
 
 def test2():
     return True
@@ -252,3 +251,5 @@ def test2():
 
 if __name__ == '__main__':
     unittest.main()
+
+

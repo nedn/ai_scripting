@@ -1,24 +1,25 @@
 #! /usr/bin/env python3
 
-import os
 import argparse
+import os
+import pathlib
 import sys
-from pathlib import Path
+
+from rich import console # Third-party
 
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 SAMPLE_DIR = os.path.abspath(os.path.join(ROOT_DIR, "samples"))
 AI_SCRIPTING_DIR = os.path.abspath(os.path.join(ROOT_DIR, "ai_scripting"))
 sys.path.append(AI_SCRIPTING_DIR)
 
-import ai_scripting.llm_utils as llm_utils
-from rich.console import Console
+from ai_scripting import llm_utils # Application-specific
 
-console = Console()
+console = console.Console()
 
 def generate_refactor_script(prompt: str, output_file: str) -> None:
     """
     Generate a refactoring script based on the user's prompt.
-    
+
     Args:
         prompt: The user's description of the refactoring task
         output_file: The path where the generated script should be saved
@@ -86,3 +87,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

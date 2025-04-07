@@ -6,20 +6,21 @@
 # git checkout 297d0339a7f7acd1418e322a30a21f44c7dbbb1d
 # python3 ai_scripting/rise_snprintf.py
 
-import os   
 import argparse
+import os
 import shlex
-
 import sys
+
+from rich import console
+
 SAMPLE_DIR = os.path.abspath(os.path.dirname(__file__))
 AI_SCRIPTING_DIR = os.path.abspath(os.path.join(SAMPLE_DIR, ".."))
 sys.path.append(AI_SCRIPTING_DIR)
 
-import ai_scripting.search_utils as search_utils
-import ai_scripting.ai_edit as ai_edit
-import ai_scripting.llm_utils as llm_utils
+from ai_scripting import search_utils
+from ai_scripting import ai_edit
+from ai_scripting import llm_utils
 
-import rich.console as console
 
 console = console.Console()
 
@@ -31,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     # Change this to the path of the RISE repo depending on where you cloned it
-    RISE_ROOT = os.path.abspath(os.path.join(AI_SCRIPTING_DIR, '..', "RISE")) 
+    RISE_ROOT = os.path.abspath(os.path.join(AI_SCRIPTING_DIR, '..', "RISE"))
 
 
     # 1. search for all the sprintf calls from the root of the RISE repo
@@ -44,7 +45,7 @@ def main():
     search_regex = shlex.quote(r"\bsprintf\(")
 
     search_results = search_utils.search(
-        search_regex=search_regex, directory=RISE_ROOT, 
+        search_regex=search_regex, directory=RISE_ROOT,
         file_types=[search_utils.FileTypes.C, search_utils.FileTypes.CPP, search_utils.FileTypes.H],
         context_lines=5 # Add 5 lines of context before and after each match line
     )
@@ -54,15 +55,15 @@ def main():
     if args.max_files > 0:
         files_to_edit = files_to_edit[:args.max_files]
         console.print(f"[yellow]Limiting AI edits to {len(files_to_edit)} files. Set --max-files to 0 to apply to all files.[/yellow]")
-    
+
     # 2. Generate an edit plan for the matched files
     # In this case, since we are replacing sprintf with snprintf, we only need to edit the matched blocks
     # and not the whole file to minimize tokens used and improve the quality of the edits.
     edit_plan = ai_edit.create_ai_plan_for_editing_files(
-            files_to_edit, 
+            files_to_edit,
             prompt="Replace sprintf with snprintf",
-            examples=ai_edit.load_example_file(os.path.join(SAMPLE_DIR, "snprintf-edits.example")), 
-            model=llm_utils.GeminiModel.GEMINI_2_5_PRO, 
+            examples=ai_edit.load_example_file(os.path.join(SAMPLE_DIR, "snprintf-edits.example")),
+            model=llm_utils.GeminiModel.GEMINI_2_5_PRO,
             edit_strategy=ai_edit.EditStrategy.REPLACE_MATCHED_BLOCKS)
 
     # 3. Print the edit plan
@@ -74,3 +75,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -5,36 +5,36 @@ import os
 import shlex
 import sys
 import re
-from pathlib import Path
+import pathlib
 from typing import Dict, Optional
 
-from ai_scripting.code_block import CodeBlock, Line, CodeMatchedResult, edit_file_with_edited_blocks
-from ai_scripting.search_utils import gather_search_results, generate_rg_command
-from ai_scripting.llm_utils import GeminiModel
-from ai_scripting.ai_edit import load_example_file, edit_code_blocks
+from ai_scripting import code_block
+from ai_scripting import search_utils
+from ai_scripting import llm_utils
+from ai_scripting import ai_edit
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
-from rich.table import Table
+from rich import console as rich_console # Alias to avoid conflict with console variable below
+from rich import panel as rich_panel # Alias for clarity or future conflict avoidance
+from rich import prompt as rich_prompt # Alias for clarity or future conflict avoidance
+from rich import table as rich_table # Alias for clarity or future conflict avoidance
 
 # Rich console for better output
-console = Console()
+console = rich_console.Console()
 
-SEARCH_ARGS_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
-REPLACEMENT_MODEL = GeminiModel.GEMINI_2_5_PRO_EXP
+SEARCH_ARGS_MODEL = llm_utils.GeminiModel.GEMINI_2_5_PRO_EXP
+REPLACEMENT_MODEL = llm_utils.GeminiModel.GEMINI_2_5_PRO_EXP
 
 
-def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_confirm: bool = False, example_file: Optional[str] = None) -> bool:
+def process_ai_edits(search_result: code_block.CodeMatchedResult, user_prompt: str, auto_confirm: bool = False, example_file: Optional[str] = None) -> bool:
     """
     Process AI edits for the search results.
-    
+
     Args:
         search_result: The search results containing matched code blocks
         user_prompt: The user's refactoring request
         auto_confirm: Whether to automatically confirm changes
         example_file: Optional path to an example file
-        
+
     Returns:
         bool: True if changes were applied successfully, False otherwise
     """
@@ -42,17 +42,17 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
     console.print(f"Will process [bold cyan]{len(search_result.matched_blocks)}[/bold cyan] code block(s) across [bold cyan]{search_result.total_files_matched}[/bold cyan] file(s).")
 
     # Load example file if provided
-    example_content = load_example_file(example_file)
+    example_content = ai_edit.load_example_file(example_file)
     if example_content:
         console.print(f"[dim]Using example file: {example_file}[/dim]")
 
     # Use the edit_code_blocks function from ai_edit.py
-    edited_blocks = edit_code_blocks(search_result.matched_blocks, user_prompt, model=REPLACEMENT_MODEL, example_content=example_content)
+    edited_blocks = ai_edit.edit_code_blocks(search_result.matched_blocks, user_prompt, model=REPLACEMENT_MODEL, example_content=example_content)
 
     # --- Step 3: Review and Apply ---
     console.print("\n[bold]--- Step 3: Review and Apply Changes ---[/bold]")
 
-    table = Table(title="Proposed Changes Summary (File Level)")
+    table = rich_table.Table(title="Proposed Changes Summary (File Level)")
     table.add_column("File", style="cyan", max_width=60)
     table.add_column("Lines to Change", style="magenta")
     table.add_column("Example Change (First Affected Line)", style="green")
@@ -64,13 +64,13 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
             continue
 
         lines_to_change_nums = [line.line_number for line in block.lines]
-        
+
         # Find the first line that is actually different
         first_changed_lineno = -1
         original_line_content = "[Original line not available for comparison]"
         new_content = "[No changes parsed?]"
         try:
-            original_file_content = Path(block.filepath).read_text(encoding='utf-8').splitlines()
+            original_file_content = pathlib.Path(block.filepath).read_text(encoding='utf-8').splitlines()
             found_diff = False
             for line in block.lines:
                 if line.line_number > 0 and line.line_number <= len(original_file_content):
@@ -142,7 +142,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
         console.print("[yellow]--yes flag provided, automatically applying all changes.[/yellow]")
         confirm_apply = True
     elif files_to_change:
-        confirm_apply = Confirm.ask(f"\nApply these changes to {len(files_to_change)} file(s)?", default=False)
+        confirm_apply = rich_prompt.Confirm.ask(f"\nApply these changes to {len(files_to_change)} file(s)?", default=False)
     else:
         console.print("[yellow]No files identified with actual changes to apply.[/yellow]")
         confirm_apply = False
@@ -157,7 +157,7 @@ def process_ai_edits(search_result: CodeMatchedResult, user_prompt: str, auto_co
 
         for filepath, blocks in edited_blocks_by_file.items():
             try:
-                edit_file_with_edited_blocks(filepath, blocks)
+                code_block.edit_file_with_edited_blocks(filepath, blocks)
                 files_successfully_changed.add(filepath)
                 console.print(f"[green]Changes applied to {filepath}[/green]")
             except Exception as e:
@@ -206,11 +206,11 @@ def main():
     folder_path = args.folder
     user_prompt = args.prompt
 
-    if not Path(folder_path).is_dir():
+    if not pathlib.Path(folder_path).is_dir():
         console.print(f"[bold red]Error: Folder not found: {folder_path}[/bold red]")
         sys.exit(1)
 
-    console.print(Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {SEARCH_ARGS_MODEL}\nReplacement model: {REPLACEMENT_MODEL}", title="Configuration", expand=False))
+    console.print(rich_panel.Panel(f"[bold]Agentic Edit Initialized[/bold]\nFolder: {folder_path}\nPrompt: {user_prompt}\nSearch args generation model: {SEARCH_ARGS_MODEL}\nReplacement model: {REPLACEMENT_MODEL}", title="Configuration", expand=False))
 
     # --- Step 1: Plan & Search ---
     console.print("\n[bold]--- Step 1: Search Plan ---[/bold]")
@@ -218,20 +218,20 @@ def main():
     current_rg_args_str = args.rg_args
     if not current_rg_args_str:
         # Use the more capable model for rg command generation
-        current_rg_args_str = generate_rg_command(user_prompt, folder_path, model=SEARCH_ARGS_MODEL)
+        current_rg_args_str = search_utils.generate_rg_command(user_prompt, folder_path, model=SEARCH_ARGS_MODEL)
         if not current_rg_args_str: # Handle LLM failure to suggest
-             current_rg_args_str = Prompt.ask("[yellow]LLM suggestion failed. Please enter rg arguments manually (e.g., -e 'pattern' -t py -C 3 -n --with-filename --stats):[/yellow]")
+             current_rg_args_str = rich_prompt.Prompt.ask("[yellow]LLM suggestion failed. Please enter rg arguments manually (e.g., -e 'pattern' -t py -C 3 -n --with-filename --stats):[/yellow]")
              if not current_rg_args_str: # User didn't provide args either
                   console.print("[bold red]No rg arguments provided. Aborting.[/bold red]")
                   sys.exit(1)
         else:
              console.print(f"Suggested rg args: [cyan]{current_rg_args_str}[/cyan]")
 
-    search_result: CodeMatchedResult = CodeMatchedResult() # Initialize empty result
+    search_result: code_block.CodeMatchedResult = code_block.CodeMatchedResult() # Initialize empty result
 
     while True:
-        console.print(Panel(f"rg {current_rg_args_str} {shlex.quote(folder_path)}", title="Current Search Command", expand=False))
-        search_result = gather_search_results(current_rg_args_str, folder_path)
+        console.print(rich_panel.Panel(f"rg {current_rg_args_str} {shlex.quote(folder_path)}", title="Current Search Command", expand=False))
+        search_result = search_utils.gather_search_results(current_rg_args_str, folder_path)
 
         if not search_result.matched_blocks:
              # No matches found, stats might still be present in search_result
@@ -246,7 +246,7 @@ def main():
             console.print("[yellow]--yes flag provided, automatically proceeding with search results.[/yellow]")
             break
 
-        action = Prompt.ask(
+        action = rich_prompt.Prompt.ask(
              f"\nFound {len(search_result.matched_blocks)} code blocks in {search_result.total_files_matched} files. Choose action (proceed, modify `rg` args, or abort):",
              choices=["p", "m", "a"],
              default="p",
@@ -259,7 +259,7 @@ def main():
                 continue
             break
         elif action == 'm':
-            new_args = Prompt.ask("Enter new rg arguments", default=current_rg_args_str)
+            new_args = rich_prompt.Prompt.ask("Enter new rg arguments", default=current_rg_args_str)
             current_rg_args_str = new_args
         elif action == 'a':
             console.print("[bold yellow]Aborted by user.[/bold yellow]")
@@ -276,3 +276,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
