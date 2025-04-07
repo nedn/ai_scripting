@@ -86,7 +86,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        '--target-dir', 
+        '--target-dir', "-d",
         required=True, 
         help='The root directory of the Java project to scan for test classes.'
     )
@@ -102,7 +102,7 @@ def main():
     args = parser.parse_args()
 
     # --- Validate Target Directory ---
-    target_dir = os.path.abspath(args.target_dir)
+    target_dir = os.path.abspath(os.path.normpath(args.target_dir))
     if not os.path.isdir(target_dir):
         console.print(f"[bold red]Error: Target directory not found or is not a directory:[/bold red] {target_dir}")
         sys.exit(1)
@@ -123,10 +123,7 @@ def main():
     console.print(f"[cyan]Using refactoring prompt:[/cyan] {refactoring_prompt}")
 
     # --- 1. Search for Java Test Files ---
-    # We'll search for files containing the "@Test" annotation, which is common
-    # in JUnit and TestNG, as a proxy for identifying test classes.
-    # Using shlex.quote to handle potential special characters safely.
-    # We request 0 context lines because we'll be editing the whole file anyway.
+    # We'll search for files containing the "ChromeTabbedActivityTestRule" instation
     search_regex = shlex.quote(r"new ChromeTabbedActivityTestRule") 
     console.print(f"Searching for Java files containing {search_regex} in {target_dir}...")
 
