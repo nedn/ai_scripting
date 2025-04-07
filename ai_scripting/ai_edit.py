@@ -16,11 +16,14 @@ def load_example_file(example_file: str) -> Optional[str]:
         console.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")
         return None
 
+_CODE_BLOCK_START = "<code_block>"
+_CODE_BLOCK_END = "</code_block>"
+
 def _get_block_prompt(block: CodeBlock) -> str:
     return f"""
-<code_block>
+{_CODE_BLOCK_START}
 {block.code_block_without_line_numbers}
-</code_block>
+{_CODE_BLOCK_END}
 """
 
 def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[EditCodeBlock]:
@@ -46,12 +49,12 @@ def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edi
     in_block = False
 
     for line in llm_output.strip().split('\n'):
-        if "<code_block>" in line:
+        if _CODE_BLOCK_START in line:
             in_block = True
-            current_block = line.split("<code_block>")[1]
-        elif "</code_block>" in line:
+            current_block = line.split(_CODE_BLOCK_START)[1]
+        elif _CODE_BLOCK_END in line:
             in_block = False
-            current_block += line.split("</code_block>")[0]
+            current_block += line.split(_CODE_BLOCK_END)[0]
             block_outputs.append(current_block)
             current_block = ""
         elif in_block:
