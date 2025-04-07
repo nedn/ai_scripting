@@ -14,11 +14,11 @@ def _extract_test_cases(test):
 def run_tests(test_name=None):
     # Get the directory containing this script
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    
+
     # Discover all test files in the current directory and subdirectories
     loader = unittest.TestLoader()
     start_dir = current_dir
-    
+
     if test_name:
         # If a test name is provided, only run tests that match the name
         suite = unittest.TestSuite()
@@ -29,11 +29,11 @@ def run_tests(test_name=None):
     else:
         # Run all tests if test name is provided
         suite = loader.discover(start_dir, pattern='*_unittest.py', top_level_dir=current_dir)
-    
+
     # Run the tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
-    
+
     # Return 0 if tests passed, 1 if any failed
     return 0 if result.wasSuccessful() else 1
 

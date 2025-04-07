@@ -1,6 +1,6 @@
 The user's overall goal is: "Refactor the code to use snprintf instead of sprintf"
 
-Code blocks to refactor:
+[Input Code Blocks]
 
 <code_block>
 int main() {{
@@ -15,7 +15,7 @@ int main() {{
     sprintf( lightname, "light%d", i );
 </code_block>
 
-Output:
+[Output Code Blocks]
 
 <code_block>
 int main() {{

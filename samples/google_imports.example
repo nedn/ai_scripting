@@ -1,3 +1,4 @@
+The user's overall goal is:
 Refactor the import statements in the provided Python code to follow the Google Python Style Guide.
 - Group imports: standard library, third-party, application-specific.
 - Sort imports alphabetically within each group.
@@ -5,19 +6,26 @@ Refactor the import statements in the provided Python code to follow the Google 
 - Use `import module` style primarily.
 - For `from module import name`, sort names alphabetically if multiple.
 
-[Input Code Block]
+[Input Code Blocks]
 <code_block>
 import sys
 import os
 import requests # third-party
-from my_app import utils, models # application specific
+from sound.effects.echo import EchoFilter
 import math
 from collections import defaultdict, Counter # standard library
 import numpy as np # third-party
-from other_local_module import helper # application specific
+from other_local_module.helper import Foo # application specific
+
+EchoFilter(input, output, delay=0.7, atten=4)
+
+def main():
+    Foo(1, 2, 3)
+
+main()
 </code_block>
 
-[Output Code Block]
+[Output Code Blocks]
 <code_block>
 import math
 import os
@@ -27,6 +35,13 @@ from collections import Counter, defaultdict
 import numpy as np # third-party
 import requests # third-party
 
-from my_app import models, utils # application specific
+from sound.effects import echo
 from other_local_module import helper # application specific
+
+echo.EchoFilter(input, output, delay=0.7, atten=4)
+
+def main():
+    helper.Foo(1, 2, 3)
+
+main()
 </code_block>
