@@ -185,14 +185,10 @@ def main():
     example_file_path = os.path.join(SAMPLE_DIR, "google_imports.example")
     examples = ai_edit.load_example_file(example_file_path)
 
-    if not examples:
-        console.print(f"[bold red]Error: Could not load example file: {example_file_path}[/bold red]")
-        console.print("[yellow]Proceeding without examples, but results may be less accurate.[/yellow]")
-
     console.print("Creating AI edit plan (this may take some time)...")
 
     try:
-        edit_plan = ai_edit.create_ai_plan_for_editing_files(
+        edit_plan, token_tracker = ai_edit.create_ai_plan_for_editing_files(
             files=files_to_edit,
             prompt=_PROMPT,
             examples=examples,
@@ -211,7 +207,11 @@ def main():
     console.print("\n--- AI Edit Plan ---")
     edit_plan.print_plan() # This currently just lists files, could be enhanced to show diffs later
 
-    # --- 4. Apply the edits ---
+    # --- 4. Print the token usage --- 
+    console.print(f"[yellow]Token usage: {token_tracker.get_usage_summary()}[/yellow]")
+    console.print(f"[yellow]Estimated cost: ${token_tracker.get_approximate_cost()}[/yellow]")
+
+    # --- 5. Apply the edits ---
     confirm = input("\nApply these edits? (y/N): ")
     if confirm.lower() == 'y':
         console.print("Applying edits...")
