@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from ai_scripting import code_block
 from ai_scripting.code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
-from ai_scripting.llm_utils import call_llm, GeminiModel, count_tokens
+from ai_scripting.llm_utils import call_llm, GeminiModel, count_tokens, TokensTracker
 from rich.console import Console
 from enum import Enum
 
@@ -91,7 +91,8 @@ def edit_code_blocks(
     edit_prompt: str,
     model: GeminiModel,
     example_content: Optional[str] = None,
-    max_blocks_per_ai_call=20
+    max_blocks_per_ai_call=20,
+    token_tracker: TokensTracker = None
 ) -> List[EditCodeBlock]:
     """
     Takes a list of CodeBlocks, an edit prompt, and a model to generate edited code blocks.
@@ -106,6 +107,7 @@ def edit_code_blocks(
             Note: while the large context window of the LLM can handle a lot more, increasing this
             number will result in slower response times and lower quality edits (see
             the paper "NoLiMa: Long-Context Evaluation Beyond Literal Matching" https://arxiv.org/abs/2502.05167)
+        token_tracker: A TokensTracker object to track the token usage of the LLM calls.
 
     Returns:
         List of edited CodeBlock objects with the same structure but potentially modified content
@@ -164,7 +166,8 @@ The user's overall goal is: "{edit_prompt}"
         if len(current_batch) >= max_blocks_per_ai_call or (current_batch and (current_batch_tokens + block_tokens) * 5 > model.output_tokens):
             # Process the current batch
             batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
-            llm_output = call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks", model=model)
+            llm_output = call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks", 
+                                  model=model, token_tracker=token_tracker)
             edited_blocks.extend(_process_llm_output(llm_output, current_batch))
 
             # Reset batch
@@ -179,7 +182,8 @@ The user's overall goal is: "{edit_prompt}"
     if current_batch:
         input_code_blocks = "\n".join(bp for _, bp in current_batch)
         batch_prompt = base_prompt.replace("%%input_code_blocks%%", input_code_blocks)
-        llm_output = call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks", model=model)
+        llm_output = call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks", 
+                              model=model, token_tracker=token_tracker)
         edited_blocks.extend(_process_llm_output(llm_output, current_batch))
 
     return edited_blocks
@@ -194,7 +198,7 @@ def create_ai_plan_for_editing_files(
     examples: Optional[str] = None,
     model: GeminiModel = GeminiModel.GEMINI_2_5_PRO,
     edit_strategy: EditStrategy = EditStrategy.REPLACE_MATCHED_BLOCKS
-) -> EditPlan:
+) -> Tuple[EditPlan, TokensTracker]:
     """
     Edit multiple files based on a given prompt and strategy.
 
@@ -208,6 +212,7 @@ def create_ai_plan_for_editing_files(
     Returns:
         List of EditCodeBlock objects containing the proposed changes
     """
+    token_tracker = TokensTracker()
     all_blocks_to_edit = []
     max_blocks_per_ai_call = 20
 
@@ -220,7 +225,8 @@ def create_ai_plan_for_editing_files(
             all_blocks_to_edit.append(target_file.whole_file_as_edit_block)
 
     edited_blocks = edit_code_blocks(all_blocks_to_edit, prompt, model, examples,
-                                     max_blocks_per_ai_call=max_blocks_per_ai_call)
+                                     max_blocks_per_ai_call=max_blocks_per_ai_call,
+                                     token_tracker=token_tracker)
 
     for target_file in files:
         for block in edited_blocks:
@@ -228,4 +234,4 @@ def create_ai_plan_for_editing_files(
                 target_file.add_edited_block(block)
 
     plan = EditPlan(files)
-    return plan
+    return plan, token_tracker
