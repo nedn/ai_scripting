@@ -2,17 +2,17 @@ import subprocess
 import sys
 import shlex
 import re
-from enum import Enum
+import enum
 
-from dataclasses import dataclass, field
+import dataclasses
 from typing import List, Optional
-from rich.console import Console
-from ai_scripting.llm_utils import call_llm, GeminiModel
-from ai_scripting.code_block import CodeMatchedResult, CodeBlock, Line, MatchedLine
+from rich import console as rich_console # Renamed to avoid conflict with variable name
+from ai_scripting import llm_utils
 from ai_scripting import code_block
-console = Console()
+# Note: Original 'from ai_scripting import code_block' was removed as redundant after refactoring the line above it.
+console = rich_console.Console() # Use aliased import
 
-class FileTypes(Enum):
+class FileTypes(enum.Enum):
     PYTHON = "py"
     C = "c"
     H = "h"
@@ -35,11 +35,11 @@ class FileTypes(Enum):
 def search(
     search_regex: str, directory: str, file_types: List[FileTypes],
     context_lines: int = 5
-) -> CodeMatchedResult:
+) -> code_block.CodeMatchedResult:
     """Searches for the given regex in the given directory and returns the results.
-    
+
     Args:
-        search_regex: The regex to search for. 
+        search_regex: The regex to search for.
         directory: The directory to search in.
         file_types: The file types to search in.
         context_lines: The number of lines of context to include in the results.
@@ -115,7 +115,7 @@ def run_rg(
         sys.exit(1) # Or handle more gracefully depending on context
     return result
 
-def generate_rg_command(user_prompt: str, folder: str, model: GeminiModel) -> str:
+def generate_rg_command(user_prompt: str, folder: str, model: llm_utils.GeminiModel) -> str:
     """Asks the LLM to suggest rg command arguments based on the user prompt."""
     prompt = (f"""
 You are an expert programmer helping with code refactoring.
@@ -130,7 +130,7 @@ Only use the following `rg` flags for this task:
 --regexp=PATTERN: A pattern to search for. This option can be provided multiple times,
     where all patterns given are searched. Lines matching at least one of the provided patterns are printed.
 --type=TYPE: This flag limits ripgrep to searching files matching TYPE. Multiple --type flags may be provided.
---fixed-strings: Treat all patterns as literals instead of as regular expressions. When this flag is used, 
+--fixed-strings: Treat all patterns as literals instead of as regular expressions. When this flag is used,
     special regular expression meta characters such as .().* should not need be escaped.
 
 Your output should be ONLY the `rg` command arguments, suitable for appending to `rg ... {folder}`.
@@ -138,11 +138,11 @@ Example output format: `--regexp="some_pattern.*" --type=py`
 Another example: `--fixed-strings "exact string" --type=h --type=c`
 
 Do not include the `rg` command itself or the folder path in your output. Just provide the arguments.
-Start the arguments directly. 
+Start the arguments directly.
 Enclose regex patterns in double quotes if they contain spaces or special characters.
 """)
 
-    suggested_args_str = call_llm(prompt, "Suggesting rg command", model=model)
+    suggested_args_str = llm_utils.call_llm(prompt, "Suggesting rg command", model=model)
 
     if not suggested_args_str or suggested_args_str.startswith("Error:"):
          console.print("[bold red]LLM failed to provide a suggestion or returned an error. Please provide rg arguments manually.[/bold red]")
@@ -198,7 +198,7 @@ Enclose regex patterns in double quotes if they contain spaces or special charac
     return cleaned_args.strip()
 
 
-def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
+def gather_search_results(rg_args_str: str, folder: str) -> code_block.CodeMatchedResult:
     """
     Runs rg with context and stats, parses the output into a CodeMatchedResult object.
 
@@ -219,7 +219,7 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     rg_result = run_rg(args_list, folder, check=False) # Don't raise on exit code 1 (no matches)
 
     full_command = f"rg {' '.join(shlex.quote(a) for a in args_list)} {shlex.quote(folder)}"
-    result = CodeMatchedResult(rg_command_used=full_command)
+    result = code_block.CodeMatchedResult(rg_command_used=full_command)
 
     if rg_result.returncode > 1:
         console.print(f"[bold red]rg command failed. Cannot gather results.[/bold red]")
@@ -238,16 +238,16 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     # --- Parsing rg Output ---
     # Regex to capture filename, line number, separator (: or -), and content
     # Handles paths with colons/hyphens before the line number part
-    # Example: 
+    # Example:
     # /path/to/file.c:
     # 121: matched content
     # 122- content
-    # 123- content 
+    # 123- content
     # --
-    # 148- 
+    # 148-
     # 149: content (with indentation)
     # 150: content (with indentation)
-    # 151- 
+    # 151-
     # 123 matches
     # 123 matched lines
     # 1 files contained matches
@@ -259,7 +259,7 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     output_lines = rg_result.stdout.strip().split('\n')
     stats_section_start = -1
 
-    # Find where the stats section begins 
+    # Find where the stats section begins
     for i, line in reversed(list(enumerate(output_lines))):
         if stats_matches_regex.search(line):
             stats_section_start = i
@@ -286,16 +286,16 @@ def gather_search_results(rg_args_str: str, folder: str) -> CodeMatchedResult:
     return result
 
 
-def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
+def _parse_match_lines(match_lines: List[str], result: code_block.CodeMatchedResult):
     """Helper to parse the match lines and update the CodeMatchedResult."""
 
     current_filepath: Optional[str] = None
-    current_match: Optional[CodeBlock] = None
+    current_match: Optional[code_block.CodeBlock] = None
     # Regex to capture line number, separator (: or -), and the line content
     # It allows for potential leading/trailing whitespace around the content
     line_regex = re.compile(r"^(\d+)([:-])(.*)$")
 
-    matched_blocks: List[CodeBlock] = []
+    matched_blocks: List[code_block.CodeBlock] = []
     def finalize_current_match():
         """Helper function to add the current match to results if it exists."""
         nonlocal current_match
@@ -327,7 +327,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
             line_number = int(line_number_str)
             is_match = (separator == ':')
 
-            code_line = MatchedLine(
+            code_line = code_block.MatchedLine(
                 line_number=line_number,
                 content=content, # Keep original content including leading whitespace
                 is_match=is_match
@@ -335,7 +335,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
 
             # If this is the first line of a new block (no current_match)
             if current_match is None:
-                current_match = CodeBlock(
+                current_match = code_block.CodeBlock(
                     filepath=current_filepath,
                     start_line=line_number,
                     lines=[code_line]
@@ -364,7 +364,7 @@ def _parse_match_lines(match_lines: List[str], result: CodeMatchedResult):
         if block.filepath not in file_path_by_blocks:
             file_path_by_blocks[block.filepath] = []
         file_path_by_blocks[block.filepath].append(block)
-        
+
     result.matched_files = [code_block.TargetFile(
         filepath=filepath,
         blocks_to_edit=blocks
@@ -393,3 +393,5 @@ def _parse_rg_stats(stats_str: str):
         elif files_re.search(line):
             files = int(files_re.search(line).group(1))
     return files, lines
+
+

@@ -1,11 +1,13 @@
+import enum
 from typing import List, Optional, Tuple
-from ai_scripting import code_block
-from ai_scripting.code_block import CodeBlock, EditCodeBlock, CreateEditCodeBlockFromCodeString
-from ai_scripting.llm_utils import call_llm, GeminiModel, count_tokens, TokensTracker
-from rich.console import Console
-from enum import Enum
 
-console = Console()
+from rich import console
+
+from ai_scripting import code_block
+from ai_scripting import llm_utils
+
+
+console_instance = console.Console()
 
 def load_example_file(example_file: str) -> Optional[str]:
     """Load an example file if it exists."""
@@ -13,20 +15,20 @@ def load_example_file(example_file: str) -> Optional[str]:
         with open(example_file, 'r') as f:
             return f.read()
     except Exception as e:
-        console.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")
+        console_instance.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")
         return None
 
 _CODE_BLOCK_START = "<code_block>"
 _CODE_BLOCK_END = "</code_block>"
 
-def _get_block_prompt(block: CodeBlock) -> str:
+def _get_block_prompt(block: code_block.CodeBlock) -> str:
     return f"""
 {_CODE_BLOCK_START}
 {block.code_block_without_line_numbers}
 {_CODE_BLOCK_END}
 """
 
-def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[EditCodeBlock]:
+def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[code_block.EditCodeBlock]:
     """
     Process LLM output to generate edited code blocks.
 
@@ -39,7 +41,7 @@ def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edi
     """
 
     if llm_output.startswith("Error:"):
-        console.print(f"[bold red]Error processing batch: {llm_output}[/bold red]")
+        console_instance.print(f"[bold red]Error processing batch: {llm_output}[/bold red]")
         # Keep the original blocks if there's an error
         return [block for block, _ in current_batch]
 
@@ -63,7 +65,7 @@ def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[Edi
     # Process each block's output
     edited_blocks = []
     for (original_block, _), edit_block_str in zip(current_batch, block_outputs):
-        edited_block = CreateEditCodeBlockFromCodeString(edit_block_str, original_block)
+        edited_block = code_block.CreateEditCodeBlockFromCodeString(edit_block_str, original_block)
         edited_blocks.append(edited_block)
 
     return edited_blocks
@@ -77,23 +79,23 @@ class EditPlan:
         return self._files
 
     def print_plan(self):
-        console.print(f"[bold green]Edit Plan:[/bold green]")
-        console.print(f"[bold green]Files to edit:[/bold green]")
+        console_instance.print(f"[bold green]Edit Plan:[/bold green]")
+        console_instance.print(f"[bold green]Files to edit:[/bold green]")
         for file in self._files:
-            console.print(f"[bold green]{file.filepath}[/bold green]")
+            console_instance.print(f"[bold green]{file.filepath}[/bold green]")
 
     def apply_edits(self):
         for file in self._files:
             file.apply_edits()
 
 def edit_code_blocks(
-    code_blocks: List[CodeBlock],
+    code_blocks: List[code_block.CodeBlock],
     edit_prompt: str,
-    model: GeminiModel,
+    model: llm_utils.GeminiModel,
     example_content: Optional[str] = None,
     max_blocks_per_ai_call=20,
-    token_tracker: TokensTracker = None
-) -> List[EditCodeBlock]:
+    token_tracker: llm_utils.TokensTracker = None
+) -> List[code_block.EditCodeBlock]:
     """
     Takes a list of CodeBlocks, an edit prompt, and a model to generate edited code blocks.
     Batches multiple blocks into a single LLM call to optimize token usage.
@@ -152,21 +154,21 @@ The user's overall goal is: "{edit_prompt}"
 """
 
     # Calculate the size of the base prompt
-    base_prompt_tokens = count_tokens(base_prompt)
+    base_prompt_tokens = llm_utils.count_tokens(base_prompt)
 
     for i, block in enumerate(code_blocks):
         # Create the block-specific prompt part
         block_prompt = _get_block_prompt(block)
 
         # Calculate tokens for this block
-        block_tokens = count_tokens(block_prompt)
+        block_tokens = llm_utils.count_tokens(block_prompt)
 
         # If adding this block would exceed the model's output token limit (accounting for potential output size)
         # or if we already have blocks in the batch, process the current batch
         if len(current_batch) >= max_blocks_per_ai_call or (current_batch and (current_batch_tokens + block_tokens) * 5 > model.output_tokens):
             # Process the current batch
             batch_prompt = base_prompt + "\n".join(bp for _, bp in current_batch)
-            llm_output = call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks", 
+            llm_output = llm_utils.call_llm(batch_prompt, f"Generating replacements for batch of {len(current_batch)} blocks",
                                   model=model, token_tracker=token_tracker)
             edited_blocks.extend(_process_llm_output(llm_output, current_batch))
 
@@ -182,13 +184,13 @@ The user's overall goal is: "{edit_prompt}"
     if current_batch:
         input_code_blocks = "\n".join(bp for _, bp in current_batch)
         batch_prompt = base_prompt.replace("%%input_code_blocks%%", input_code_blocks)
-        llm_output = call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks", 
+        llm_output = llm_utils.call_llm(batch_prompt, f"Generating replacements for final batch of {len(current_batch)} blocks",
                               model=model, token_tracker=token_tracker)
         edited_blocks.extend(_process_llm_output(llm_output, current_batch))
 
     return edited_blocks
 
-class EditStrategy(Enum):
+class EditStrategy(enum.Enum):
     REPLACE_MATCHED_BLOCKS = "replace_matched_blocks"
     REPLACE_WHOLE_FILE = "replace_whole_file"
 
@@ -196,9 +198,9 @@ def create_ai_plan_for_editing_files(
     files: List[code_block.TargetFile],
     prompt: str,
     examples: Optional[str] = None,
-    model: GeminiModel = GeminiModel.GEMINI_2_5_PRO,
+    model: llm_utils.GeminiModel = llm_utils.GeminiModel.GEMINI_2_5_PRO,
     edit_strategy: EditStrategy = EditStrategy.REPLACE_MATCHED_BLOCKS
-) -> Tuple[EditPlan, TokensTracker]:
+) -> Tuple[EditPlan, llm_utils.TokensTracker]:
     """
     Edit multiple files based on a given prompt and strategy.
 
@@ -212,7 +214,7 @@ def create_ai_plan_for_editing_files(
     Returns:
         List of EditCodeBlock objects containing the proposed changes
     """
-    token_tracker = TokensTracker()
+    token_tracker = llm_utils.TokensTracker()
     all_blocks_to_edit = []
     max_blocks_per_ai_call = 20
 
@@ -235,3 +237,4 @@ def create_ai_plan_for_editing_files(
 
     plan = EditPlan(files)
     return plan, token_tracker
+
