@@ -18,12 +18,35 @@ git clone https://github.com/nedn/ai_scripting.git
 cd ai_scripting
 ```
 
-2. Install the required dependencies:
+2. Set up a Python virtual environment (recommended):
+```bash
+# Using venv
+python3 -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+
+# Or using conda
+conda create -n ai_scripting python=3.x
+conda activate ai_scripting
+```
+
+3. Install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up your environment variables in `.env`:
+4. Install ripgrep (required for code search functionality):
+```bash
+# On macOS (using Homebrew)
+brew install ripgrep
+
+# On Ubuntu/Debian
+sudo apt-get install ripgrep
+
+# On Windows (using Chocolatey)
+choco install ripgrep
+```
+
+5. Set up your environment variables in `.env`:
 ```
 GOOGLE_API_KEY=your_api_key_here
 ```
