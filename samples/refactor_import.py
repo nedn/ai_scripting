@@ -207,7 +207,7 @@ def main():
     console.print("\n--- AI Edit Plan ---")
     edit_plan.print_plan() # This currently just lists files, could be enhanced to show diffs later
 
-    # --- 4. Print the token usage --- 
+    # --- 4. Print the token usage ---
     console.print(f"[yellow]Token usage: {token_tracker.get_usage_summary()}[/yellow]")
     console.print(f"[yellow]Estimated cost: ${token_tracker.get_approximate_cost()}[/yellow]")
 

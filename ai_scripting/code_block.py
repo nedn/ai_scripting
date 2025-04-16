@@ -66,7 +66,7 @@ class CodeBlock:
     def original_file_content(self) -> str:
         """Returns the full original file content as a single string."""
         if self._original_file_content is None:
-            with open(self.filepath, 'r') as file:
+            with open(self.filepath, 'r', encoding='utf-8') as file:
                 self._original_file_content = file.read()
         return self._original_file_content
 
@@ -126,7 +126,7 @@ class TargetFile:
         if self._original_file_content is None:
             if self._already_applied_edits:
                 raise ValueError("Edits already applied. Cannot get original file content.")
-            with open(self.filepath, 'r') as file:
+            with open(self.filepath, 'r', encoding='utf-8') as file:
                 self._original_file_content = file.read()
         return self._original_file_content
 
@@ -171,7 +171,7 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
             raise ValueError(f"Block {b.filepath} does not match filepath {filepath}")
 
     # Read the original file content
-    with open(filepath, 'r') as file:
+    with open(filepath, 'r', encoding='utf-8') as file:
         lines = file.readlines()
 
     # Sort the blocks by start line
@@ -181,7 +181,7 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
     line_offset = 0
 
     if DEBUG_CODE_BLOCKS_EDITING:
-        code_block_debugging_file =  open("code_blocks.txt", "a")
+        code_block_debugging_file = open("code_blocks.txt", "a", encoding='utf-8')
         debug_console = console.Console(file=code_block_debugging_file)
     else:
         code_block_debugging_file = None
@@ -206,7 +206,7 @@ def _edit_file_with_edited_blocks(filepath: str, edit_blocks: List[EditCodeBlock
         line_offset += block.len_lines - block.len_lines_of_original_block
 
     # Write the modified content back to the file
-    with open(filepath, 'w') as file:
+    with open(filepath, 'w', encoding='utf-8') as file:
         file.writelines(lines)
 
     if code_block_debugging_file:

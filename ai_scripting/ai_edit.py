@@ -12,7 +12,7 @@ console_instance = console.Console()
 def load_example_file(example_file: str) -> Optional[str]:
     """Load an example file if it exists."""
     try:
-        with open(example_file, 'r') as f:
+        with open(example_file, 'r', encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         console_instance.print(f"[yellow]Warning: Could not load example file {example_file}: {e}[/yellow]")

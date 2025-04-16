@@ -1,0 +1,101 @@
+# .pylintrc
+# Configuration file for Pylint, designed for incremental improvement.
+
+[MAIN]
+# Specify the number of parallel jobs to run, 0 means use all available cores.
+# Useful for larger projects.
+# jobs=0
+
+# Automatically load extensions specified in the 'load-plugins' option.
+load-plugins=
+
+[MESSAGES CONTROL]
+# Disable specific messages.
+# Start by disabling noisy checks (docstrings, complexity, some style conventions)
+# and focus on errors and critical warnings first.
+# Re-enable these checks gradually as the code improves.
+disable=
+    # --- Docstring Related ---
+    C0114, # missing-module-docstring
+    C0115, # missing-class-docstring
+    C0116, # missing-function-docstring
+
+    # --- Refactoring / Complexity Related ---
+    R0902, # too-many-instance-attributes (Not in current output, but often disabled initially)
+    R0903, # too-few-public-methods (Not in current output, but often disabled initially)
+    R0912, # too-many-branches
+    R0913, # too-many-arguments
+    R0914, # too-many-locals
+    R0915, # too-many-statements
+    R0917, # too-many-positional-arguments
+    R1705, # no-else-return
+    R1716, # chained-comparison
+    R1720, # no-else-raise
+    R1723, # no-else-break
+    R0801, # duplicate-code (Useful, but disable initially to reduce noise)
+
+    # --- Naming Conventions ---
+    C0103, # invalid-name (Often needs configuration or relaxation initially)
+
+    # --- Other Warnings/Conventions ---
+    W0212, # protected-access (Often acceptable, especially in tests)
+    # W0621, # redefined-outer-name (Only appeared once, consider keeping enabled unless it becomes noisy)
+    # W1309, # f-string-without-interpolation (Minor, keep enabled for now)
+    # C0325, # superfluous-parens (Minor, keep enabled for now)
+
+
+# Enable specific messages. You usually don't need this unless you disable
+# broad categories and want specific ones back.
+# enable=
+
+[FORMAT]
+# Increase the maximum number of characters allowed on a single line.
+# Default is 100. 120 is a common modern alternative.
+max-line-length=120
+
+# Regexp for acceptable indentation units (e.g. normal tabs, normal spaces).
+indent-string='    ' # Use 4 spaces (default)
+
+# Allow trailing comma if wanted (often used with auto-formatters like black)
+accept-no-trailing-comma=no
+
+[DESIGN]
+# Even though complexity checks (R09*) are disabled above,
+# you could relax the limits here instead if you re-enable them later.
+ max-args=7
+ max-locals=20
+ max-statements=60
+ max-branches=15
+ max-attributes=10
+
+[VARIABLES]
+# List of variable names allowed to be redefined in loops.
+# dummy-variables-rgx=^_|dummy
+
+# List of names allowed for unused variables. Helps ignore intentional unused args.
+# ignored-argument-names=args,kwargs,_.*
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked.
+# Use this if Pylint incorrectly reports errors for valid members of certain libraries.
+# ignored-modules=
+
+# Tell pylint whether to check classmember attributes in files that do not contain the class definition.
+# Confidence has to be HIGH to report an error.
+confidence=HIGH
+
+[REPORTS]
+output-format=text
+
+[SIMILARITIES]
+# Minimum lines number of a similarity.
+min-similarity-lines=4
+
+# Ignore comments when computing similarities.
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities.
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities.
+ignore-imports=yes

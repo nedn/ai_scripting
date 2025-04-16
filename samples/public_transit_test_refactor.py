@@ -1,7 +1,7 @@
 """
 Refactors Java test classes found within a target directory using AI.
 
-This script automates the process of refactoring Java test classes based on a 
+This script automates the process of refactoring Java test classes based on a
 user-provided prompt. It follows a similar structure to the rise_snprintf.py example:
 1. Uses search_utils to find relevant Java test files (e.g., containing @Test).
 2. Uses ai_edit to generate and apply edits to the entire content of the identified files.
@@ -13,7 +13,7 @@ To use this script:
 2. Ensure 'rg' (ripgrep) is installed and accessible in your PATH.
 3. Create an example file (e.g., java-test-refactor.example) showcasing the
    desired "before" and "after" state of a typical refactoring.
-4. Run the script, providing the path to your Java project and potentially 
+4. Run the script, providing the path to your Java project and potentially
    adjusting the prompt within the script for your specific refactoring goal.
 
 Example command:
@@ -77,7 +77,7 @@ EXAMPLE_FILE_PATH = os.path.join(SCRIPT_DIR, EXAMPLE_FILE_NAME)
 
 def main():
     """
-    Main function to parse arguments, find Java test files, 
+    Main function to parse arguments, find Java test files,
     generate refactoring edits using AI, and apply them.
     """
     # --- Argument Parsing ---
@@ -87,18 +87,18 @@ def main():
     )
     parser.add_argument(
         '--target-dir', "-d",
-        required=True, 
+        required=True,
         help='The root directory of the Java project to scan for test classes.'
     )
     parser.add_argument(
-        '--max-files', "-m", 
-        type=int, 
+        '--max-files', "-m",
+        type=int,
         default=5,
         help='Maximum number of files to apply AI edits to. Set to 0 to apply to all found files.'
     )
     # Consider adding an argument for the prompt if more flexibility is needed:
     # parser.add_argument('--prompt', default="Refactor this Java test class to the new standard.", help='The prompt describing the refactoring task.')
-    
+
     args = parser.parse_args()
 
     # --- Validate Target Directory ---
@@ -108,10 +108,10 @@ def main():
         sys.exit(1)
 
     console.print(f"Target directory set to: {target_dir}")
-    
+
     # --- Define the AI Refactoring Prompt ---
     # IMPORTANT: Customize this prompt based on the specific refactoring needed.
-    # Be clear about the desired changes (e.g., migrate to JUnit 5, use AssertJ assertions, 
+    # Be clear about the desired changes (e.g., migrate to JUnit 5, use AssertJ assertions,
     # adopt a new base class, implement a specific pattern).
     refactoring_prompt = (
         "Refactor the following Java test class. Update it to use the latest company testing standards, "
@@ -124,12 +124,12 @@ def main():
 
     # --- 1. Search for Java Test Files ---
     # We'll search for files containing the "ChromeTabbedActivityTestRule" instation
-    search_regex = shlex.quote(r"new ChromeTabbedActivityTestRule") 
+    search_regex = shlex.quote(r"new ChromeTabbedActivityTestRule")
     console.print(f"Searching for Java files containing {search_regex} in {target_dir}...")
 
     try:
         search_results = search_utils.search(
-            search_regex=search_regex, 
+            search_regex=search_regex,
             directory=target_dir,
             file_types=[search_utils.FileTypes.JAVA],
             context_lines=0 # We need the whole file content for whole-file edits
@@ -161,14 +161,14 @@ def main():
 
     console.print("Generating AI edit plan...")
     try:
-        # Since we want to refactor the entire test class, we use the 
-        # REPLACE_WHOLE_FILE strategy. This tells ai_edit to provide the 
-        # entire file content to the LLM and expect the entire refactored 
+        # Since we want to refactor the entire test class, we use the
+        # REPLACE_WHOLE_FILE strategy. This tells ai_edit to provide the
+        # entire file content to the LLM and expect the entire refactored
         # file content back.
         edit_plan = ai_edit.create_ai_plan_for_editing_files(
                 files_to_edit,
                 prompt=CODE_TRANSIT_REFACTORING_PROMPT,
-                examples=example_content, 
+                examples=example_content,
                 model=llm_utils.GeminiModel.GEMINI_2_5_PRO, # Or choose another suitable model
                 edit_strategy=ai_edit.EditStrategy.REPLACE_WHOLE_FILE # Edit entire file
         )
@@ -202,7 +202,7 @@ def main():
 CODE_TRANSIT_REFACTORING_PROMPT = """
 Your task is to refactor the tests that use the legacy ChromeTabbedActivityTestRule to use the new FreshCtaTransitTestRule class and its associated methods.
 
-Anywhere you see code like `ChromeTabbedActivityTestRule foo = new ChromeTabbedActivityTestRule()` you would 
+Anywhere you see code like `ChromeTabbedActivityTestRule foo = new ChromeTabbedActivityTestRule()` you would
 replace it with `FreshCtaTransitTestRule foo = FreshCtaTransitTestRule mActivityTestRule = ChromeTransitTestRules.freshChromeTabbedActivityRule();`
 and update the imports as well as the method calls of `foo` accordingly.
 

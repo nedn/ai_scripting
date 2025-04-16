@@ -273,7 +273,7 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel, token_tracker: Token
     console.print(f"[cyan]Calling LLM model {model.code_name} for: {purpose}...[/cyan]")
 
     if DEBUG_LLM_CALLS:
-        llm_log_file = open("llm_log.txt", "a")
+        llm_log_file = open("llm_log.txt", "a", encoding='utf-8')
         llm_log_console = console.Console(file=llm_log_file)
     else:
         llm_log_file = None

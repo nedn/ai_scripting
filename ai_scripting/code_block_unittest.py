@@ -147,7 +147,7 @@ def test2():
 
         code_block._edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
-        with open(self.temp_filepath, 'r') as f:
+        with open(self.temp_filepath, 'r', encoding='utf-8') as f:
             content = f.read()
             expected_content = """def testFoo():
     print('modified')
@@ -197,7 +197,7 @@ def test2():
 
         code_block._edit_file_with_edited_blocks(self.temp_filepath, edited_blocks)
 
-        with open(self.temp_filepath, 'r') as f:
+        with open(self.temp_filepath, 'r', encoding='utf-8') as f:
             content = f.read()
             expected_content = """def test1():
     print('modified1')
@@ -254,7 +254,7 @@ def test2():
 
         code_block._edit_file_with_edited_blocks(self.temp_filepath, [edited_block])
 
-        with open(self.temp_filepath, 'r') as f:
+        with open(self.temp_filepath, 'r', encoding='utf-8') as f:
             content = f.read()
             expected_content = """def test1():
     print('modified')

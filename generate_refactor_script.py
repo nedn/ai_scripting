@@ -39,16 +39,16 @@ The script should be saved to: {output_file}
 
 [Example of rise_snprintf.py]
 Create a Python script that performs the following refactoring task: replace sprintf with snprintf for the RISE project.
-{open(os.path.join(SAMPLE_DIR, "rise_snprintf.py")).read()}
+{open(os.path.join(SAMPLE_DIR, "rise_snprintf.py"), encoding='utf-8').read()}
 [Example of rise_snprintf.py End]
 
 The following are content of search_util and ai_edit files:
 [search_utils.py]
-{open(os.path.join(AI_SCRIPTING_DIR, "search_utils.py")).read()}
+{open(os.path.join(AI_SCRIPTING_DIR, "search_utils.py"), encoding='utf-8').read()}
 [search_utils.py End]
 
 [ai_edit.py]
-{open(os.path.join(AI_SCRIPTING_DIR, "ai_edit.py")).read()}
+{open(os.path.join(AI_SCRIPTING_DIR, "ai_edit.py"), encoding='utf-8').read()}
 [ai_edit.py End]
 """
 
@@ -60,7 +60,7 @@ The following are content of search_util and ai_edit files:
     )
 
     # Save the generated script
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write(response)
 
     console.print(f"[green]Generated refactoring script saved to: {output_file}[/green]")
