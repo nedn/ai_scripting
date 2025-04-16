@@ -1,4 +1,4 @@
-google-genai
-python-dotenv
-rich
-tiktoken
+google-genai==1.10.0
+python-dotenv==1.1.0
+rich==14.0.0
+tiktoken==0.9.0
