@@ -43,7 +43,7 @@ def _process_llm_output(llm_output: str, current_batch: List[tuple]) -> List[cod
     if llm_output.startswith("Error:"):
         console_instance.print(f"[bold red]Error processing batch: {llm_output}[/bold red]")
         # Keep the original blocks if there's an error
-        return [block for block, _ in current_batch]
+        return [code_block.EditCodeBlock(block.lines, block) for block, _ in current_batch]
 
     # Parse the LLM output into separate block outputs using XML tags
     block_outputs = []

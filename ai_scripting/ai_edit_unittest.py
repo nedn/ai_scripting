@@ -24,7 +24,7 @@ class TestProcessLLMOutput(unittest.TestCase):
         llm_output = "Error: Something went wrong"
         result = ai_edit._process_llm_output(llm_output, self.current_batch)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0], self.sample_block) # Original block should be returned
+        self.assertTrue(result[0].is_no_op_edit)
 
     def test_single_block_processing(self):
         """Test processing a single code block"""

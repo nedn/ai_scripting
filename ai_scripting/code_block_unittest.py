@@ -45,6 +45,25 @@ class TestCodeBlock(unittest.TestCase):
     def test_matched_lines_numbers(self):
         self.assertEqual(self.code_block.matched_lines_numbers, [1, 2, 3])
 
+    def test_is_no_op_edit(self):
+        # Create an EditCodeBlock with no changes
+        original_lines = self.code_block.lines
+        edit_lines_no_change = [code_block.Line(l.line_number, l.content) for l in original_lines]
+        no_op_edit_block = code_block.EditCodeBlock(
+            lines=edit_lines_no_change,
+            original_block=self.code_block
+        )
+        self.assertTrue(no_op_edit_block.is_no_op_edit)
+
+        # Create an EditCodeBlock with changes
+        edit_lines_with_change = [code_block.Line(l.line_number, l.content) for l in original_lines]
+        edit_lines_with_change[1] = code_block.Line(original_lines[1].line_number, "    print('changed')\\n")
+        modified_edit_block = code_block.EditCodeBlock(
+            lines=edit_lines_with_change,
+            original_block=self.code_block
+        )
+        self.assertFalse(modified_edit_block.is_no_op_edit)
+
 class TestCodeMatchedResult(unittest.TestCase):
     def setUp(self):
         self.code_block = code_block.CodeBlock(

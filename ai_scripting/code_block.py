@@ -10,6 +10,9 @@ class Line:
     line_number: int # Relative to the file which contains this line
     content: str
 
+    def __eq__(self, other):
+        return self.line_number == other.line_number and self.content == other.content
+
 
 @dataclasses.dataclass
 class MatchedLine(Line):
@@ -94,6 +97,11 @@ class EditCodeBlock(CodeBlock):
     def len_lines_of_original_block(self) -> int:
         """Returns the number of lines in the original code block."""
         return self.original_block.len_lines
+
+    @property
+    def is_no_op_edit(self) -> bool:
+        """Returns True if the edit is a no-op (i.e. the edited code is the same as the original code)."""
+        return self.lines == self.original_block.lines
 
 
 @dataclasses.dataclass
