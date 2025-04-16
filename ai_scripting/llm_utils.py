@@ -15,11 +15,12 @@ console = console.Console()
 # Load environment variables from .env file
 dotenv.load_dotenv()
 
-API_KEY = os.getenv("GOOGLE_API_KEY")
+_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-if not API_KEY:
-    print("Error: GOOGLE_API_KEY not found in environment variables or .env file.")
-    sys.exit(1)
+def get_api_key():
+    if not _API_KEY:
+        raise RuntimeError("GOOGLE_API_KEY not found in environment variables or .env file.")
+    return _API_KEY
 
 @dataclasses.dataclass(frozen=True)
 class _ModelData:
@@ -251,7 +252,7 @@ class TokensTracker:
         Combines the usage of another TokensTracker object into the current one.
 
         Args:
-            other: The TokensTracker object to combine with the current one.    
+            other: The TokensTracker object to combine with the current one.
         Returns:
             A new TokensTracker object with combined usage.
         """
@@ -293,7 +294,7 @@ def call_llm(prompt: str, purpose: str, model: GeminiModel, token_tracker: Token
     console.print(f"[yellow]Input tokens: {input_tokens}[/yellow]")
 
     try:
-        client = genai.Client(api_key=API_KEY)
+        client = genai.Client(api_key=get_api_key())
         response = client.models.generate_content(
             model=model.code_name,
             contents=prompt,
