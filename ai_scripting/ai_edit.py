@@ -82,11 +82,13 @@ class EditPlan:
         console_instance.print(f"[bold green]Edit Plan:[/bold green]")
         console_instance.print(f"[bold green]Files to edit:[/bold green]")
         for file in self._files:
-            console_instance.print(f"[bold green]{file.filepath}[/bold green]")
+            if not file.is_no_op_edit:
+                console_instance.print(f"[bold green]{file.filepath}[/bold green]")
 
     def apply_edits(self):
         for file in self._files:
-            file.apply_edits()
+            if not file.is_no_op_edit:
+                file.apply_edits()
 
 def edit_code_blocks(
     code_blocks: List[code_block.CodeBlock],

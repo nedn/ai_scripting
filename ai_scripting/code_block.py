@@ -140,6 +140,10 @@ class TargetFile:
                     lines=[Line(line_number=i+1, content=line) for i, line in enumerate(self.original_file_content.split("\n"))])
         return self._edited_block_for_whole_file
 
+    def is_no_op_edit(self) -> bool:
+        """Returns True if all the edited blocks are no-op edits."""
+        return all(block.is_no_op_edit for block in self.blocks_to_edit)
+
     def apply_edits(self):
         """Applies the edits to the file."""
         if self._already_applied_edits:
